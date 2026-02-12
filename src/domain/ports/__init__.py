@@ -1,20 +1,15 @@
-from __future__ import annotations
+"""Domain ports (interfaces) for external dependencies."""
 
-from domain import aggregates, value_objects
-from domain.ports import (
+from domain.ports.decide import (
     ActiveExperimentResolver,
     DecisionIdGenerator,
     FeatureFlagResolver,
     ParticipationPolicy,
 )
-from domain.services import compute_decide_result
 
 __all__ = [
     "ActiveExperimentResolver",
     "DecisionIdGenerator",
     "FeatureFlagResolver",
     "ParticipationPolicy",
-    "aggregates",
-    "compute_decide_result",
-    "value_objects",
 ]

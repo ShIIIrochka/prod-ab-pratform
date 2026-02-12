@@ -6,8 +6,6 @@ from datetime import datetime
 
 @dataclass(frozen=True)
 class Decision:
-    """Решение о том, какое значение флага показать пользователю."""
-
     decision_id: str
     subject_id: str
     flag_key: str
@@ -17,7 +15,6 @@ class Decision:
     timestamp: datetime
 
     def __post_init__(self) -> None:
-        """Валидация решения."""
         if self.experiment_id and not self.variant_id:
             msg = "Variant ID is required when experiment ID is set"
             raise ValueError(msg)

@@ -34,6 +34,7 @@ class Experiment(BaseEntity):
     guardrail_configs: list[GuardrailConfig] = field(default_factory=list)
     approvals: list[Approval] = field(default_factory=list)
     completion: ExperimentCompletion | None = None
+    rollback_to_control_active: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -198,6 +199,29 @@ class Experiment(BaseEntity):
 
     def is_active(self) -> bool:
         return self.status.is_active()
+
+    def activate_rollback_to_control(self) -> None:
+        """Вызывается при срабатывании guardrail с действием ROLLBACK_TO_CONTROL."""
+        if self.status != ExperimentStatus.RUNNING:
+            msg = (
+                f"Rollback to control only applies to running experiments, "
+                f"current status: {self.status}"
+            )
+            raise ValueError(msg)
+        self.rollback_to_control_active = True
+        self.updated_at = datetime.utcnow()
+
+    def clear_rollback_to_control(self) -> None:
+        """Снимает режим отката к контролю (например при ручном возобновлении)."""
+        self.rollback_to_control_active = False
+        self.updated_at = datetime.utcnow()
+
+    def get_control_variant(self) -> Variant:
+        """Возвращает контрольный вариант эксперимента."""
+        for v in self.variants:
+            if v.is_control:
+                return v
+        raise ValueError("Experiment must have exactly one control variant")
 
     def freeze_configuration(self) -> None:
         """Замораживает конфигурацию после запуска.

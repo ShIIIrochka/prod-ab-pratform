@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from domain.value_objects.targeting_dsl import evaluate_expression
+
 
 @dataclass(frozen=True)
 class TargetingRule:
@@ -24,9 +26,6 @@ class TargetingRule:
             True если пользователь проходит правило, False иначе.
 
         Note:
-            Реальная реализация парсинга DSL будет в сервисном слое.
-            Здесь только структура данных.
+            Отсутствующий атрибут по ТЗ 2.7 трактуется как false (пользователь не проходит).
         """
-        # TODO: Реализовать парсинг DSL выражения
-        # Пока возвращаем True для валидного выражения
-        return True
+        return evaluate_expression(self.rule_expression, attributes)
