@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "jamlib>=2.5.5",
+    "punq>=0.7.0",
+    "tortoise>=0.1.1",
+]
 
 [dependency-groups]
 dev = [
