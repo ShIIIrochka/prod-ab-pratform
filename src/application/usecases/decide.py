@@ -1,73 +1,108 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
-from domain.ports.decide import (
-    ActiveExperimentResolver,
-    DecisionIdGenerator,
-    FeatureFlagResolver,
-    ParticipationPolicy,
+from application.dto.decide import (
+    DecideRequest,
+    DecideResponse,
+    DecisionResponse,
 )
-from domain.services.decision_engine import compute_decide_result
-from domain.value_objects.decision import Decision
+from application.ports.decisions_repository import DecisionsRepositoryPort
+from application.ports.experiments_repository import ExperimentsRepositoryPort
+from application.ports.feature_flags_repository import (
+    FeatureFlagsRepositoryPort,
+)
+from domain.aggregates.decision import Decision
+from domain.services.decision_engine import compute_decision
+from domain.services.decision_id_generator import (
+    generate_deterministic_decision_id,
+)
 
 
-def decide(
-    flag_resolver: FeatureFlagResolver,
-    experiment_resolver: ActiveExperimentResolver,
-    decision_id_generator: DecisionIdGenerator,
-    subject_id: str,
-    attributes: dict[str, Any],
-    flag_keys: list[str],
-    participation_policy: ParticipationPolicy | None = None,
-    timestamp: datetime | None = None,
-) -> list[Decision]:
-    """Возвращает список решений по запрошенным флагам. Порядок совпадает с flag_keys."""
-    if not subject_id or not subject_id.strip():
-        raise ValueError("subject_id is required and cannot be empty")
+class DecideUseCase:
+    def __init__(
+        self,
+        feature_flags_repository: FeatureFlagsRepositoryPort,
+        experiments_repository: ExperimentsRepositoryPort,
+        decisions_repository: DecisionsRepositoryPort,
+    ) -> None:
+        self._feature_flags_repository = feature_flags_repository
+        self._experiments_repository = experiments_repository
+        self._decisions_repository = decisions_repository
 
-    ts = timestamp or datetime.utcnow()
-    results: list[Decision] = []
-    applied_experiment_ids: list[str] = []
-
-    for flag_key in flag_keys:
-        flag = flag_resolver.get_flag(flag_key)
+    async def execute(self, data: DecideRequest) -> DecideResponse:
+        # Получаем флаг
+        flag = self._feature_flags_repository.get_by_key(data.flag_key)
         if flag is None:
-            raise ValueError(f"Feature flag not found: {flag_key}")
+            raise ValueError(f"Feature flag not found: {data.flag_key}")
 
-        experiment, rollback_active = experiment_resolver.get_active_experiment(
-            flag_key
+        # Получаем активный эксперимент (может быть None)
+        experiment = self._experiments_repository.get_active_by_flag_key(
+            data.flag_key
         )
-        can_participate = True
-        if participation_policy is not None and experiment is not None:
-            can_participate = participation_policy.can_participate(
-                subject_id=subject_id,
-                experiment_id=str(experiment.id),
-                applied_experiment_ids=applied_experiment_ids,
-            )
 
-        def get_decision_id(exp_id: str | None, var_id: str | None) -> str:
-            return decision_id_generator.generate(
-                subject_id=subject_id,
-                flag_key=flag_key,
-                experiment_id=exp_id,
-                variant_id=var_id,
-            )
-
-        decision = compute_decide_result(
-            default_value=flag.default_value.value,
+        # Вычисляем решение через decision engine
+        decision_result = compute_decision(
             experiment=experiment,
-            subject_id=subject_id,
-            attributes=attributes,
-            rollback_active=rollback_active,
-            can_participate=can_participate,
-            flag_key=flag_key,
-            timestamp=ts,
-            get_decision_id=get_decision_id,
+            subject_id=str(data.subject_id),
+            attributes=data.attributes,
         )
-        results.append(decision)
-        if decision.experiment_id:
-            applied_experiment_ids.append(decision.experiment_id)
 
-    return results
+        # Формируем итоговое значение и метаданные
+        timestamp = datetime.utcnow()
+
+        if decision_result.applied:
+            # Эксперимент применился - берём значение из варианта
+            value = decision_result.value
+            experiment_id = experiment.id  # UUID
+            variant_id = decision_result.variant_id
+            experiment_version = experiment.version
+        else:
+            # Эксперимент не применился - берём default из флага
+            value = flag.default_value.value
+            experiment_id = None
+            variant_id = None
+            experiment_version = None
+
+        # Генерируем детерминированный decision_id для идемпотентности (ТЗ 3.5.3)
+        decision_id = generate_deterministic_decision_id(
+            subject_id=data.subject_id,
+            flag_key=data.flag_key,
+            experiment_id=experiment_id,
+            variant_id=variant_id,
+        )
+
+        # Проверяем, существует ли уже решение с таким ID (идемпотентность)
+        existing_decision = await self._decisions_repository.get_by_id(
+            str(decision_id)
+        )
+
+        if existing_decision:
+            # Решение уже существует - возвращаем его (ретрай запроса)
+            decision = existing_decision
+        else:
+            # Создаём новое решение с детерминированным UUID
+            decision = Decision(
+                id=decision_id,  # Передаём явно для идемпотентности
+                subject_id=data.subject_id,
+                flag_key=data.flag_key,
+                value=value,
+                experiment_id=experiment_id,
+                variant_id=variant_id,
+                experiment_version=experiment_version,
+                timestamp=timestamp,
+            )
+            await self._decisions_repository.save(decision)
+
+        # Формируем ответ для продукта
+        decision_response = DecisionResponse(
+            decision_id=decision.decision_id,  # str(decision.id) через property
+            subject_id=data.subject_id,
+            flag_key=data.flag_key,
+            value=value,
+            experiment_id=str(experiment_id) if experiment_id else None,
+            variant_id=variant_id,
+            timestamp=timestamp,
+        )
+
+        return DecideResponse(decision=decision_response)

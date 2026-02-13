@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from domain.value_objects.approval import Approval
-from domain.value_objects.decision import Decision
 from domain.value_objects.experiment_completion import (
     ExperimentCompletion,
     ExperimentOutcome,

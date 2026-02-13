@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 
+from dataclasses import dataclass
 from typing import Any
 
 from domain.aggregates.experiment import Experiment
 from domain.entities.variant import Variant
+from domain.value_objects.experiment_status import ExperimentStatus
 
 
 def _stable_hash_bucket(
@@ -51,24 +53,59 @@ def _select_variant_by_weights(
     return variants_sorted[-1]
 
 
-def compute_decision_value(
-    experiment: Experiment,
+@dataclass
+class DecisionResult:
+    """Результат принятия решения для одного флага."""
+
+    applied: bool
+    value: str | int | float | bool
+    variant_id: str | None = None
+
+
+def compute_decision(
+    experiment: Experiment | None,
     subject_id: str,
     attributes: dict[str, Any],
-) -> str | int | float | bool | None:
-    if experiment.targeting_rule is None or experiment.targeting_rule.evaluate(
-        attributes
-    ):
-        bucket = _stable_hash_bucket(
-            subject_id, str(experiment.id), experiment.version
-        )
-        if bucket < experiment.audience_fraction:
-            variants_sorted = sorted(experiment.variants, key=lambda v: v.name)
-            cumulative = _build_cumulative_weights(variants_sorted)
-            variant = _select_variant_by_weights(
-                subject_id, experiment, variants_sorted, cumulative
-            )
-            value = variant.value
+) -> DecisionResult:
+    """Принимает решение о том, какой вариант показать пользователю.
 
-            return value
-    return None
+    Args:
+        experiment: Эксперимент (может быть None)
+        subject_id: Идентификатор пользователя
+        attributes: Атрибуты для таргетинга
+
+    Returns:
+        DecisionResult с информацией о том, применился ли эксперимент,
+        значение и variant_id (если применился).
+    """
+    # Если эксперимента нет или он не в статусе RUNNING - не применяется
+    if experiment is None or experiment.status != ExperimentStatus.RUNNING:
+        return DecisionResult(applied=False, value="", variant_id=None)
+
+    # Проверяем таргетинг
+    if experiment.targeting_rule is not None:
+        if not experiment.targeting_rule.evaluate(attributes):
+            return DecisionResult(applied=False, value="", variant_id=None)
+
+    # Проверяем попадание в аудиторию эксперимента
+    bucket = _stable_hash_bucket(
+        subject_id, str(experiment.id), experiment.version
+    )
+    if bucket >= experiment.audience_fraction:
+        return DecisionResult(applied=False, value="", variant_id=None)
+
+    # Выбираем вариант
+    variants_sorted = sorted(experiment.variants, key=lambda v: v.name)
+
+    # Если включен режим отката к контролю - выбираем control
+    if experiment.rollback_to_control_active:
+        variant = experiment.get_control_variant()
+    else:
+        cumulative = _build_cumulative_weights(variants_sorted)
+        variant = _select_variant_by_weights(
+            subject_id, experiment, variants_sorted, cumulative
+        )
+
+    return DecisionResult(
+        applied=True, value=variant.value, variant_id=variant.name
+    )
