@@ -65,8 +65,17 @@ class Experiment(BaseEntity):
     def can_be_edited(self) -> bool:
         return self.status.can_be_edited()
 
-    def can_be_launched(self) -> bool:
-        return self.status.can_be_launched()
+    def can_be_launched(self, user: User) -> bool:
+        if not self.status.can_be_launched():
+            return False
+        if not self.owner.approval_group:
+            # Если группа не задана, одобрение от админа достаточно
+            min_approvals = 1 if user.role == UserRole.ADMIN else None
+        else:
+            min_approvals = self.owner.approval_group.min_approvals_required
+        if not min_approvals or len(self.approvals) < min_approvals:
+            return False
+        return True
 
     def can_be_reviewed(self, user: User) -> bool:
         """Проверяет, может ли пользователь ревьюить этот эксперимент."""
@@ -94,6 +103,7 @@ class Experiment(BaseEntity):
         if not self.can_be_reviewed(requesting_user):
             raise CannotReviewExperimentError
         self.status = ExperimentStatus.DRAFT
+        self.approvals.clear()
         self.updated_at = datetime.utcnow()
 
     def reject(self, rejecting_user: User, comment: str | None = None) -> None:
@@ -103,9 +113,13 @@ class Experiment(BaseEntity):
         if not self.can_be_reviewed(rejecting_user):
             raise CannotReviewExperimentError
         self.status = ExperimentStatus.REJECTED
+        self.approvals.clear()
         self.updated_at = datetime.utcnow()
 
     def approve(self, approving_user: User, comment: str | None = None) -> None:
+        if any(a.user_id == approving_user.id for a in self.approvals):
+            raise ValueError("User has already approved this experiment")
+
         if self.status != ExperimentStatus.ON_REVIEW:
             msg = f"Cannot add approval when status is {self.status}"
             raise ValueError(msg)
@@ -131,8 +145,8 @@ class Experiment(BaseEntity):
             self.status = ExperimentStatus.APPROVED
         self.updated_at = datetime.utcnow()
 
-    def launch(self) -> None:
-        if not self.can_be_launched():
+    def launch(self, user: User) -> None:
+        if not self.can_be_launched(user):
             msg = f"Cannot launch experiment in status {self.status}"
             raise ValueError(msg)
         self.status = ExperimentStatus.RUNNING
@@ -157,7 +171,7 @@ class Experiment(BaseEntity):
         outcome: ExperimentOutcome,
         comment: str,
         completed_by: UUID,
-        winner_variant_id: str | None = None,
+        winner_variant_id: str,
     ) -> None:
         if self.status not in (
             ExperimentStatus.RUNNING,
@@ -178,14 +192,13 @@ class Experiment(BaseEntity):
             raise ValueError(msg)
 
         # Проверяем, что winner_variant_id существует в вариантах
-        if winner_variant_id:
-            variant_names = [v.name for v in self.variants]
-            if winner_variant_id not in variant_names:
-                msg = (
-                    f"Winner variant '{winner_variant_id}' "
-                    f"not found in experiment variants"
-                )
-                raise ValueError(msg)
+        variant_names = [v.name for v in self.variants]
+        if winner_variant_id not in variant_names:
+            msg = (
+                f"Winner variant '{winner_variant_id}' "
+                f"not found in experiment variants"
+            )
+            raise ValueError(msg)
 
         self.completion = ExperimentCompletion(
             outcome=outcome,
