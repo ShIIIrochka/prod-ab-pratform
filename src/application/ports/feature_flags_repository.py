@@ -7,5 +7,5 @@ from domain.aggregates.feature_flag import FeatureFlag
 
 class FeatureFlagsRepositoryPort(ABC):
     @abstractmethod
-    def get_by_key(self, flag_key: str) -> FeatureFlag | None:
+    async def get_by_key(self, flag_key: str) -> FeatureFlag | None:
         raise NotImplementedError

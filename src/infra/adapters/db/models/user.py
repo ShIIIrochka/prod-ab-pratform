@@ -10,24 +10,22 @@ from domain.value_objects.user_role import UserRole
 
 
 class UserModel(Model):
-    id = fields.CharField(pk=True, max_length=36, description="User UUID")
+    id = fields.CharField(pk=True, max_length=63)
     email = fields.CharField(
         max_length=255,
         unique=True,
-        description="User email (unique)",
     )
-    password = fields.CharField(max_length=255, description="Hashed password")
+    password = fields.CharField(max_length=255)
     role = fields.CharEnumField(
-        UserRole, default=UserRole.VIEWER, description="UserRole enum value"
+        UserRole, default=UserRole.VIEWER
     )
 
     approval_group = fields.JSONField(
         null=True,
-        description="ApprovalGroup configuration for EXPERIMENTER role",
     )
 
     created_at = fields.DatetimeField(
-        auto_now_add=True, description="Creation timestamp"
+        auto_now_add=True
     )
 
     class Meta:

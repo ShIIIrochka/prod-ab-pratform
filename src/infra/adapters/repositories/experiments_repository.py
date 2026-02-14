@@ -12,22 +12,9 @@ from infra.adapters.db.models.variant import VariantModel
 
 
 class ExperimentsRepository(ExperimentsRepositoryPort):
-    def get_active_by_flag_key(self, flag_key: str) -> Experiment | None:
-        """Получает активный эксперимент по ключу флага (синхронный метод)."""
-        import asyncio
-
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            return None  # TODO: реализовать правильную загрузку
-        else:
-            return loop.run_until_complete(
-                self._get_active_by_flag_key_async(flag_key)
-            )
-
-    async def _get_active_by_flag_key_async(
+    async def get_active_by_flag_key(
         self, flag_key: str
     ) -> Experiment | None:
-        """Асинхронная версия получения активного эксперимента."""
         # Получаем эксперимент со статусом RUNNING
         model = await ExperimentModel.get_or_none(
             flag_key=flag_key,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from domain.exceptions.base import ApplicationException
 
 
@@ -9,13 +11,9 @@ class DecisionException(ApplicationException):
     pass
 
 
+@dataclass
 class FeatureFlagNotFoundException(DecisionException):
-    """Исключение когда feature flag не найден."""
-
-    def __init__(self, flag_key: str):
-        message = f"Feature flag not found: {flag_key}"
-        details = {"flag_key": flag_key}
-        super().__init__(message, details)
+    message = "Feature flag not found"
 
 
 class ExperimentNotFoundException(DecisionException):

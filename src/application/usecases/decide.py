@@ -32,15 +32,15 @@ class DecideUseCase:
         self._decisions_repository = decisions_repository
 
     async def execute(self, data: DecideRequest) -> DecideResponse:
-        flag = await self._feature_flags_repository._get_by_key_async(
-            data.flag_key
-        )
+        flag = await self._feature_flags_repository.get_by_key(data.flag_key)
 
         if flag is None:
-            raise FeatureFlagNotFoundException(flag_key=data.flag_key)
+            raise FeatureFlagNotFoundException
 
-        experiment = await self._experiments_repository._get_active_by_flag_key_async(
-            data.flag_key
+        experiment = (
+            await self._experiments_repository._get_active_by_flag_key_async(
+                data.flag_key
+            )
         )
 
         decision_result = compute_decision(
