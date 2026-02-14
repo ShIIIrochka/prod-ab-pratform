@@ -5,11 +5,6 @@ from tortoise.models import Model
 
 
 class DecisionModel(Model):
-    """Tortoise модель для хранения решений (decision_log).
-
-    decision_id генерируется детерминированно для обеспечения идемпотентности (ТЗ 3.5.3).
-    """
-
     id = fields.CharField(
         pk=True, max_length=36, description="Decision ID (UUID, deterministic)"
     )
@@ -38,5 +33,4 @@ class DecisionModel(Model):
         table = "decisions"
         indexes = [
             ("subject_id", "flag_key"),
-            ("experiment_id", "timestamp"),
         ]

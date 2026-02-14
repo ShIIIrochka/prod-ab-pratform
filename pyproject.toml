@@ -11,6 +11,8 @@ dependencies = [
     "jamlib>=2.5.5",
     "punq>=0.7.0",
     "tortoise-orm[asyncpg]>=1.1.1",
+    "uvloop>=0.22.1",
+    "aerich[toml]>=0.8.1",
 ]
 
 [dependency-groups]
@@ -18,6 +20,9 @@ dev = [
     "mypy>=1.19.1",
     "ruff>=0.15.0",
 ]
+
+[tool.aerich]
+tortoise-orm = "src.main.AERCH_CONFIG"
 
 [tool.ruff]
 line-length = 80

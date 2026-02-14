@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from uuid import UUID
+from dataclasses import dataclass, field
+from uuid import uuid4
 
-from domain.aggregates import BaseEntity
 from domain.value_objects.user_role import UserRole
 
 
 @dataclass
 class ApprovalGroup:
-    experimenter_id: UUID
-    approver_ids: list[UUID]
+    experimenter_id: str
+    approver_ids: list[str]
     min_approvals_required: int
 
     def __post_init__(self) -> None:
@@ -29,9 +28,11 @@ class ApprovalGroup:
 
 
 @dataclass
-class User(BaseEntity):
+class User:
+    id: str = field(default_factory=lambda: str(uuid4()), kw_only=True)
     email: str
     role: UserRole
+    password: str
     approval_group: ApprovalGroup | None = None
 
     def set_approval_group(self, group: ApprovalGroup) -> None:

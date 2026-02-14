@@ -13,6 +13,7 @@ from application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
 from domain.aggregates.decision import Decision
+from domain.exceptions import FeatureFlagNotFoundException
 from domain.services.decision_engine import compute_decision
 from domain.services.decision_id_generator import (
     generate_deterministic_decision_id,
@@ -31,17 +32,17 @@ class DecideUseCase:
         self._decisions_repository = decisions_repository
 
     async def execute(self, data: DecideRequest) -> DecideResponse:
-        # Получаем флаг
-        flag = self._feature_flags_repository.get_by_key(data.flag_key)
-        if flag is None:
-            raise ValueError(f"Feature flag not found: {data.flag_key}")
-
-        # Получаем активный эксперимент (может быть None)
-        experiment = self._experiments_repository.get_active_by_flag_key(
+        flag = await self._feature_flags_repository._get_by_key_async(
             data.flag_key
         )
 
-        # Вычисляем решение через decision engine
+        if flag is None:
+            raise FeatureFlagNotFoundException(flag_key=data.flag_key)
+
+        experiment = await self._experiments_repository._get_active_by_flag_key_async(
+            data.flag_key
+        )
+
         decision_result = compute_decision(
             experiment=experiment,
             subject_id=str(data.subject_id),
