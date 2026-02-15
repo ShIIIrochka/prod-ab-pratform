@@ -296,6 +296,7 @@ ab.sendEvent("buttonClicked", personId="u42", props={"screen": "checkout"})
 Пример для связи с one-pager: флаг `button_color` может иметь значения `green` по умолчанию и экспериментальные варианты `blue`/`red`.
 
 ---
+
 # 2. Experiments — бизнес-требования
 
 ## 2.1 Цель

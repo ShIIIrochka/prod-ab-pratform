@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from application.ports.feature_flags_repository import (
+from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
-from domain.aggregates.feature_flag import FeatureFlag
-from infra.adapters.db.models.feature_flag import FeatureFlagModel
+from src.domain.aggregates.feature_flag import FeatureFlag
+from src.infra.adapters.db.models.feature_flag import FeatureFlagModel
 
 
 class FeatureFlagsRepository(FeatureFlagsRepositoryPort):

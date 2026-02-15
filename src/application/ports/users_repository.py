@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from domain.aggregates.user import User
+from src.domain.aggregates.user import User
 
 
 class UsersRepositoryPort(ABC):

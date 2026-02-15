@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from uuid import uuid4
 
-from domain.value_objects.user_role import UserRole
+from src.domain.value_objects.user_role import UserRole
 
 
 @dataclass

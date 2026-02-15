@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from application.ports.users_repository import UsersRepositoryPort
-from domain.aggregates.user import User
-from infra.adapters.db.models.user import UserModel
+from src.application.ports.users_repository import UsersRepositoryPort
+from src.domain.aggregates.user import User
+from src.infra.adapters.db.models.user import UserModel
 
 
 class UserRepository(UsersRepositoryPort):

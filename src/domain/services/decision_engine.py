@@ -5,9 +5,9 @@ import hashlib
 from dataclasses import dataclass
 from typing import Any
 
-from domain.aggregates.experiment import Experiment
-from domain.entities.variant import Variant
-from domain.value_objects.experiment_status import ExperimentStatus
+from src.domain.aggregates.experiment import Experiment
+from src.domain.entities.variant import Variant
+from src.domain.value_objects.experiment_status import ExperimentStatus
 
 
 def _stable_hash_bucket(

@@ -2,51 +2,51 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
-from starlette.authentication import requires
+from fastapi import APIRouter, Depends, Request, status
 
-from application.dto.auth import (
+from src.application.dto.auth import (
     LoginRequest,
     RegisterRequest,
     TokenResponse,
 )
-from application.dto.user import UserResponse
-from application.usecases.auth.login import LoginUseCase
-from application.usecases.user.create import CreateUserUseCase
-from presentation.rest.dependencies import Container, get_current_user
+from src.application.dto.user import UserResponse
+from src.application.usecases.auth.login import LoginUseCase
+from src.application.usecases.user.create import CreateUserUseCase
+from src.presentation.rest.dependencies import Container, get_current_user
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@requires(["authenticated", "admin"])
 @router.post(
     "/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
+# @requires(["authenticated", "admin"])
 async def register(
     data: RegisterRequest,
     container: Container,
 ) -> UserResponse:
     use_case = container.resolve(CreateUserUseCase)
     user = await use_case.execute(data)
-    return UserResponse.from_domain(user)
+    return UserResponse.model_validate(user)
 
 
-@requires(["authenticated"])
 @router.post("/login", response_model=TokenResponse)
+# @requires(["authenticated"])
 async def login(
+    request: Request,
     data: LoginRequest,
     container: Container,
 ) -> TokenResponse:
     use_case = container.resolve(LoginUseCase)
     response = await use_case.execute(data)
-    return TokenResponse.from_domain(response)
+    return TokenResponse.model_validate(response)
 
 
-@requires(["authenticated"])
 @router.get("/me", response_model=UserResponse)
+# @requires(["authenticated"])
 async def get_me(
     current_user: Annotated[UserResponse, Depends(get_current_user)],
 ) -> UserResponse:

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from infra.adapters.config import Config
-from infra.aerch_config import get_aerich_config
-from presentation.rest.app import create_app
-from presentation.rest.dependencies import container
+from src.infra.adapters.config import Config
+from src.infra.aerich_config import get_aerich_config
+from src.presentation.rest.app import create_app
+from src.presentation.rest.dependencies import container
 
 
 config: Config = container.resolve(Config)
@@ -13,7 +13,8 @@ app = create_app()
 if __name__ == "__main__":
     import asyncio
 
-    from granian.server import Server
+    from granian.server.embed import Server
 
-    server = Server(target=app, interface="asgi", port=8000)
+    server = Server(target=app, interface="asgi")
     asyncio.run(server.serve())
+2

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Literal
 
-from domain.value_objects.jwt import JWTPayload
+from src.domain.value_objects.jwt import JWTPayload
 
 
 class JWTPort(ABC):

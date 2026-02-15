@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from application.dto.auth import (
+from src.application.dto.auth import (
     LoginRequest,
 )
-from application.ports.jwt import JWTPort
-from application.ports.password_hasher import PasswordHasherPort
-from application.ports.users_repository import UsersRepositoryPort
-from domain.exceptions.users import UserNotFoundError
-from domain.value_objects.jwt import JWTPayload, Tokens
+from src.application.ports.jwt import JWTPort
+from src.application.ports.password_hasher import PasswordHasherPort
+from src.application.ports.users_repository import UsersRepositoryPort
+from src.domain.exceptions.users import UserNotFoundError
+from src.domain.value_objects.jwt import JWTPayload, Tokens
 
 
 class LoginUseCase:

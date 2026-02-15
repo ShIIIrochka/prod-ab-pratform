@@ -6,10 +6,10 @@ from fastapi import Depends, HTTPException, status
 from punq import Container as PunqContainer
 from starlette.requests import Request
 
-from application.dto.user import UserResponse
-from application.usecases.user.get_by_id import GetUserByIdUseCase
-from domain.exceptions.users import UserNotFoundError
-from infra.bootstrap import create_container
+from src.application.dto.user import UserResponse
+from src.application.usecases.user.get_by_id import GetUserByIdUseCase
+from src.domain.exceptions.users import UserNotFoundError
+from src.infra.bootstrap import create_container
 
 
 container = create_container()
@@ -26,7 +26,7 @@ async def get_current_user(
     try:
         usecase: GetUserByIdUseCase = container.resolve(GetUserByIdUseCase)
         user = await usecase.execute(user_id)
-        return UserResponse.from_domain(user)
+        return UserResponse.model_validate(user)
     except UserNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

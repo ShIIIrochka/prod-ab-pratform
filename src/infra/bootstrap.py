@@ -1,29 +1,33 @@
-from jam import Jam
+from jam.aio import Jam
 from punq import Container
 
-from application.ports.decisions_repository import DecisionsRepositoryPort
-from application.ports.experiments_repository import ExperimentsRepositoryPort
-from application.ports.feature_flags_repository import (
+from src.application.ports.decisions_repository import DecisionsRepositoryPort
+from src.application.ports.experiments_repository import (
+    ExperimentsRepositoryPort,
+)
+from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
-from application.ports.jwt import JWTPort
-from application.ports.password_hasher import PasswordHasherPort
-from application.ports.users_repository import UsersRepositoryPort
-from application.usecases.auth.login import LoginUseCase
-from application.usecases.decide import DecideUseCase
-from application.usecases.user.create import CreateUserUseCase
-from application.usecases.user.get_by_id import GetUserByIdUseCase
-from infra.adapters.config import Config
-from infra.adapters.jwt import JWTAdapter
-from infra.adapters.password_hasher import PasswordHasher
-from infra.adapters.repositories.decisions_repository import DecisionsRepository
-from infra.adapters.repositories.experiments_repository import (
+from src.application.ports.jwt import JWTPort
+from src.application.ports.password_hasher import PasswordHasherPort
+from src.application.ports.users_repository import UsersRepositoryPort
+from src.application.usecases.auth.login import LoginUseCase
+from src.application.usecases.decide import DecideUseCase
+from src.application.usecases.user.create import CreateUserUseCase
+from src.application.usecases.user.get_by_id import GetUserByIdUseCase
+from src.infra.adapters.config import Config
+from src.infra.adapters.jwt import JWTAdapter
+from src.infra.adapters.password_hasher import PasswordHasher
+from src.infra.adapters.repositories.decisions_repository import (
+    DecisionsRepository,
+)
+from src.infra.adapters.repositories.experiments_repository import (
     ExperimentsRepository,
 )
-from infra.adapters.repositories.feature_flags_repository import (
+from src.infra.adapters.repositories.feature_flags_repository import (
     FeatureFlagsRepository,
 )
-from infra.adapters.repositories.users_repository import UserRepository
+from src.infra.adapters.repositories.users_repository import UserRepository
 
 
 def create_container() -> Container:

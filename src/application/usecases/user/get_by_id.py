@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from application.dto.user import UserResponse
-from application.ports.users_repository import UsersRepositoryPort
-from domain.aggregates.user import User
-from domain.exceptions.users import UserNotFoundError
+from src.application.ports.users_repository import UsersRepositoryPort
+from src.domain.aggregates.user import User
+from src.domain.exceptions.users import UserNotFoundError
 
 
 class GetUserByIdUseCase:
@@ -13,8 +12,8 @@ class GetUserByIdUseCase:
     ) -> None:
         self._users_repository = users_repository
 
-    async def execute(self, user_id: str) -> UserResponse:
-        user: User = await self._users_repository.get_by_id(user_id)
+    async def execute(self, user_id: str) -> User:
+        user: User | None = await self._users_repository.get_by_id(user_id)
         if not user:
             raise UserNotFoundError
-        return UserResponse.from_domain(user)
+        return user

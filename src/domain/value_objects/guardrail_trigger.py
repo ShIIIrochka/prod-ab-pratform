@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from domain.value_objects.guardrail_config import GuardrailAction
+from src.domain.value_objects.guardrail_config import GuardrailAction
 
 
 @dataclass(frozen=True)

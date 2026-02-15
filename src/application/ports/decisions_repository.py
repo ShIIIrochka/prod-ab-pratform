@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from domain.aggregates.decision import Decision
+from src.domain.aggregates.decision import Decision
 
 
 class DecisionsRepositoryPort(ABC):

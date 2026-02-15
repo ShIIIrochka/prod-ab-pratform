@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from domain.aggregates.feature_flag import FeatureFlag
+from src.domain.aggregates.feature_flag import FeatureFlag
 
 
 class FeatureFlagsRepositoryPort(ABC):

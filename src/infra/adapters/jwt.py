@@ -2,7 +2,7 @@ from typing import Literal
 
 from jam.aio import Jam
 
-from domain.value_objects.jwt import JWTPayload
+from src.domain.value_objects.jwt import JWTPayload
 
 
 class JWTAdapter:
@@ -17,10 +17,10 @@ class JWTAdapter:
         exp: int = (
             self._access_exp if token_type == "access" else self._refresh_exp
         )
-        payload_ = self._jam_instance.jwt_make_payload(
-            exp=exp, **payload.__dict__
+        payload_ = await self._jam_instance.jwt_make_payload(
+            exp=exp, data=payload.__dict__
         )
-        return await self._jam_instance.jwt_create_token(await payload_)
+        return await self._jam_instance.jwt_create_token(payload_)
 
     async def verify(self, token: str) -> JWTPayload:
         payload = await self._jam_instance.jwt_verify_token(

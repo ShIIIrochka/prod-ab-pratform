@@ -1,6 +1,6 @@
 from tortoise.transactions import in_transaction
 
-from application.ports.uow import UnitOfWorkPort
+from src.application.ports.uow import UnitOfWorkPort
 
 
 class UnitOfWork(UnitOfWorkPort):

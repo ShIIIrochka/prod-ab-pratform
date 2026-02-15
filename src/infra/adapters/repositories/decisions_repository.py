@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from application.ports.decisions_repository import DecisionsRepositoryPort
-from domain.aggregates.decision import Decision
-from infra.adapters.db.models.decision import DecisionModel
+from src.application.ports.decisions_repository import DecisionsRepositoryPort
+from src.domain.aggregates.decision import Decision
+from src.infra.adapters.db.models.decision import DecisionModel
 
 
 class DecisionsRepository(DecisionsRepositoryPort):

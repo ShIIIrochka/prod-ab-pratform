@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from domain.aggregates.experiment import Experiment
+from src.domain.aggregates.experiment import Experiment
 
 
 class ExperimentsRepositoryPort(ABC):

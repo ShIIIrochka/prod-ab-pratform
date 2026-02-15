@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.domain.aggregates import BaseEntity
+
 
 @dataclass
-class Variant:
+class Variant(BaseEntity):
     name: str
     value: str | int | float | bool
     weight: float

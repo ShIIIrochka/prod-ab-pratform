@@ -5,8 +5,8 @@ from dataclasses import asdict
 from tortoise import fields
 from tortoise.models import Model
 
-from domain.aggregates.user import ApprovalGroup, User
-from domain.value_objects.user_role import UserRole
+from src.domain.aggregates.user import ApprovalGroup, User
+from src.domain.value_objects.user_role import UserRole
 
 
 class UserModel(Model):
@@ -16,29 +16,27 @@ class UserModel(Model):
         unique=True,
     )
     password = fields.CharField(max_length=255)
-    role = fields.CharEnumField(
-        UserRole, default=UserRole.VIEWER
-    )
+    role = fields.CharEnumField(UserRole, default=UserRole.VIEWER)
 
     approval_group = fields.JSONField(
         null=True,
     )
 
-    created_at = fields.DatetimeField(
-        auto_now_add=True
-    )
+    created_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
         table = "users"
 
     def to_domain(self) -> User:
-        approval_group = ApprovalGroup(
-            experimenter_id=self.approval_group.get("experimenter_id"),
-            approver_ids=self.approval_group.get("approver_ids"),
-            min_approvals_required=self.approval_group.get(
-                "min_approvals_required"
-            ),
-        )
+        approval_group = None
+        if self.approval_group:
+            approval_group = ApprovalGroup(
+                experimenter_id=self.approval_group.get("experimenter_id"),
+                approver_ids=self.approval_group.get("approver_ids"),
+                min_approvals_required=self.approval_group.get(
+                    "min_approvals_required"
+                ),
+            )
         return User(
             id=self.id,
             email=self.email,
@@ -54,5 +52,7 @@ class UserModel(Model):
             email=user.email,
             role=user.role,
             password=user.password,
-            approval_group=asdict(user.approval_group),
+            approval_group=asdict(user.approval_group)
+            if user.approval_group
+            else None,
         )

@@ -4,19 +4,18 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
-from domain.aggregates import BaseEntity
-from domain.aggregates.user import User
-from domain.entities.variant import Variant
-from domain.exceptions.experiment import CannotReviewExperimentError
-from domain.value_objects.approval import Approval
-from domain.value_objects.experiment_completion import (
+from src.domain.aggregates import BaseEntity
+from src.domain.aggregates.user import User
+from src.domain.entities.variant import Variant
+from src.domain.exceptions.experiment import CannotReviewExperimentError
+from src.domain.value_objects.approval import Approval
+from src.domain.value_objects.experiment_completion import (
     ExperimentCompletion,
     ExperimentOutcome,
 )
-from domain.value_objects.experiment_status import ExperimentStatus
-from domain.value_objects.guardrail_config import GuardrailConfig
-from domain.value_objects.targeting_rule import TargetingRule
-from domain.value_objects.user_role import UserRole
+from src.domain.value_objects.experiment_status import ExperimentStatus
+from src.domain.value_objects.targeting_rule import TargetingRule
+from src.domain.value_objects.user_role import UserRole
 
 
 @dataclass
@@ -28,10 +27,10 @@ class Experiment(BaseEntity):
     audience_fraction: float
     variants: list[Variant]
     targeting_rule: TargetingRule | None
-    owner: User
-    target_metric_key: str | None = None
-    metric_keys: list[str] = field(default_factory=list)
-    guardrail_configs: list[GuardrailConfig] = field(default_factory=list)
+    owner_id: str
+    # target_metric_key: str | None = None
+    # metric_keys: list[str] = field(default_factory=list)
+    # guardrail_configs: list[GuardrailConfig] = field(default_factory=list)
     approvals: list[Approval] = field(default_factory=list)
     completion: ExperimentCompletion | None = None
     rollback_to_control_active: bool = False
@@ -65,26 +64,26 @@ class Experiment(BaseEntity):
     def can_be_edited(self) -> bool:
         return self.status.can_be_edited()
 
-    def can_be_launched(self, user: User) -> bool:
+    def can_be_launched(self, owner: User, approver: User) -> bool:
         if not self.status.can_be_launched():
             return False
-        if not self.owner.approval_group:
+        if not owner.approval_group:
             # Если группа не задана, одобрение от админа достаточно
-            min_approvals = 1 if user.role == UserRole.ADMIN else None
+            min_approvals = 1 if approver.role == UserRole.ADMIN else None
         else:
-            min_approvals = self.owner.approval_group.min_approvals_required
+            min_approvals = owner.approval_group.min_approvals_required
         if not min_approvals or len(self.approvals) < min_approvals:
             return False
         return True
 
-    def can_be_reviewed(self, user: User) -> bool:
+    def can_be_reviewed(self, owner: User, user: User) -> bool:
         """Проверяет, может ли пользователь ревьюить этот эксперимент."""
         if user.role == UserRole.ADMIN:
             return True
         elif user.role == UserRole.APPROVER:
-            if not self.owner.approval_group:
+            if not owner.approval_group:
                 return False
-            return user.id in self.owner.approval_group.approver_ids
+            return user.id in owner.approval_group.approver_ids
         return False
 
     def send_to_review(self) -> None:
@@ -95,35 +94,39 @@ class Experiment(BaseEntity):
         self.updated_at = datetime.utcnow()
 
     def request_changes(
-        self, requesting_user: User, comment: str | None = None
+        self, owner: User, requesting_user: User, comment: str | None = None
     ) -> None:
         if self.status != ExperimentStatus.ON_REVIEW:
             msg = f"Cannot request changes when status is {self.status}"
             raise ValueError(msg)
-        if not self.can_be_reviewed(requesting_user):
+        if not self.can_be_reviewed(owner, requesting_user):
             raise CannotReviewExperimentError
         self.status = ExperimentStatus.DRAFT
         self.approvals.clear()
         self.updated_at = datetime.utcnow()
 
-    def reject(self, rejecting_user: User, comment: str | None = None) -> None:
+    def reject(
+        self, owner: User, rejecting_user: User, comment: str | None = None
+    ) -> None:
         if self.status != ExperimentStatus.ON_REVIEW:
             msg = f"Cannot add approval when status is {self.status}"
             raise ValueError(msg)
-        if not self.can_be_reviewed(rejecting_user):
+        if not self.can_be_reviewed(owner, rejecting_user):
             raise CannotReviewExperimentError
         self.status = ExperimentStatus.REJECTED
         self.approvals.clear()
         self.updated_at = datetime.utcnow()
 
-    def approve(self, approving_user: User, comment: str | None = None) -> None:
+    def approve(
+        self, owner: User, approving_user: User, comment: str | None = None
+    ) -> None:
         if any(a.user_id == approving_user.id for a in self.approvals):
             raise ValueError("User has already approved this experiment")
 
         if self.status != ExperimentStatus.ON_REVIEW:
             msg = f"Cannot add approval when status is {self.status}"
             raise ValueError(msg)
-        if not self.can_be_reviewed(approving_user):
+        if not self.can_be_reviewed(owner, approving_user):
             raise CannotReviewExperimentError
 
         approval = Approval(
@@ -135,18 +138,18 @@ class Experiment(BaseEntity):
 
         approve_count = len(self.approvals)
         # Определяем минимальный порог одобрений
-        if not self.owner.approval_group:
+        if not owner.approval_group:
             # Если группа не задана, одобрение от админа достаточно
             min_approvals = 1 if approving_user.role == UserRole.ADMIN else None
         else:
-            min_approvals = self.owner.approval_group.min_approvals_required
+            min_approvals = owner.approval_group.min_approvals_required
 
         if min_approvals and approve_count >= min_approvals:
             self.status = ExperimentStatus.APPROVED
         self.updated_at = datetime.utcnow()
 
-    def launch(self, user: User) -> None:
-        if not self.can_be_launched(user):
+    def launch(self, owner: User, user: User) -> None:
+        if not self.can_be_launched(owner, user):
             msg = f"Cannot launch experiment in status {self.status}"
             raise ValueError(msg)
         self.status = ExperimentStatus.RUNNING

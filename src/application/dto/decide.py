@@ -28,8 +28,9 @@ class DecisionResponse(BaseModel):
     variant_id: str | None = None
     timestamp: datetime
 
+    class Config:
+        from_attributes = True
+
 
 class DecideResponse(BaseModel):
-    """Ответ Decision API с одним решением (MVP: 1 флаг → 1 решение)."""
-
     decision: DecisionResponse

@@ -3,8 +3,8 @@ from __future__ import annotations
 from tortoise import fields
 from tortoise.models import Model
 
-from domain.aggregates import FeatureFlag
-from domain.value_objects import FlagValueType
+from src.domain.aggregates.feature_flag import FeatureFlag
+from src.domain.value_objects import FlagValueType
 
 
 class FeatureFlagModel(Model):
@@ -12,7 +12,9 @@ class FeatureFlagModel(Model):
         pk=True,
         max_length=255,
     )
-    value_type = fields.CharEnumField(FlagValueType, default=FlagValueType.STRING)
+    value_type = fields.CharEnumField(
+        FlagValueType, default=FlagValueType.STRING
+    )
     default_value = fields.JSONField()
     description = fields.TextField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)

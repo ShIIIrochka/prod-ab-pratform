@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from domain.aggregates import BaseEntity
+from src.domain.aggregates import BaseEntity
 
 
 @dataclass

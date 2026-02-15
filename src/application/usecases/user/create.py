@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from application.dto.auth import RegisterRequest
-from application.ports.password_hasher import PasswordHasherPort
-from application.ports.users_repository import UsersRepositoryPort
-from domain.aggregates.user import User
-from domain.exceptions.users import UserAlreadyExistsException
+from src.application.dto.auth import RegisterRequest
+from src.application.ports.password_hasher import PasswordHasherPort
+from src.application.ports.users_repository import UsersRepositoryPort
+from src.domain.aggregates.user import User
+from src.domain.exceptions.users import UserAlreadyExistsError
 
 
 class CreateUserUseCase:
@@ -18,7 +18,7 @@ class CreateUserUseCase:
 
     async def execute(self, data: RegisterRequest) -> User:
         if await self._users_repository.get_by_email(data.email):
-            raise UserAlreadyExistsException
+            raise UserAlreadyExistsError
 
         password_hash = self._password_hasher.hash(data.password)
 

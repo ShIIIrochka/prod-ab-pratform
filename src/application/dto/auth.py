@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, EmailStr, Field
 
-from domain.value_objects.jwt import Tokens
-from domain.value_objects.user_role import UserRole
+from src.domain.value_objects.user_role import UserRole
 
 
 class RegisterRequest(BaseModel):
@@ -23,9 +22,5 @@ class TokenResponse(BaseModel):
     access_token: str = Field(..., description="JWT access token")
     refresh_token: str = Field(..., description="JWT refresh token")
 
-    @classmethod
-    def from_domain(cls, tokens: Tokens) -> TokenResponse:
-        return cls(
-            access_token=tokens.access_token,
-            refresh_token=tokens.refresh_token,
-        )
+    class Config:
+        from_attributes = True

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from domain.value_objects.targeting_dsl import evaluate_expression
+from src.domain.value_objects.targeting_dsl import evaluate_expression
 
 
 @dataclass(frozen=True)

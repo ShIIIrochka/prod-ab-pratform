@@ -7,5 +7,5 @@ class UserNotFoundError(Exception):
 
 
 @dataclass
-class UserAlreadyExistsException(Exception):
+class UserAlreadyExistsError(Exception):
     message = "User with this email already exists"

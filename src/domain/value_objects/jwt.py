@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domain.value_objects.user_role import UserRole
+from src.domain.value_objects.user_role import UserRole
 
 
 @dataclass(frozen=True)

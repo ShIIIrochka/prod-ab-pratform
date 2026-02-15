@@ -1,20 +1,20 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.14"
 
 [[package]]
 name = "aerich"
-version = "0.8.1"
+version = "0.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "anyio" },
     { name = "asyncclick" },
     { name = "dictdiffer" },
-    { name = "pydantic" },
     { name = "tortoise-orm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/41/3c478b7a344abda866f2c644b056ebae638499bbe0eec0010e7361211774/aerich-0.8.1.tar.gz", hash = "sha256:1e95b1c04dfc0c634dd43b0123933038c820140e17a4b27885a63b7461eb0632", size = 31429, upload-time = "2024-12-27T04:40:38.65Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c4/60/5d3885f531fab2cecec67510e7b821efc403940ed9eefd034b2c21350f3c/aerich-0.9.2.tar.gz", hash = "sha256:02d58658714eebe396fe7bd9f9401db3a60a44dc885910ad3990920d0357317d", size = 74231, upload-time = "2025-10-10T05:53:49.632Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/49/72/50b961b8f46080c626a566be7769163d593b429a5d94029cc32ef5f1fe4d/aerich-0.8.1-py3-none-any.whl", hash = "sha256:2743cf85bd9957ea173055dad07ee5a3219067e4f117d5402a44204c27e83c9f", size = 42303, upload-time = "2024-12-27T04:40:35.655Z" },
+    { url = "https://files.pythonhosted.org/packages/87/1a/956c6b1e35881bb9835a33c8db1565edcd133f8e45321010489092a0df40/aerich-0.9.2-py3-none-any.whl", hash = "sha256:d0f007acb21f6559f1eccd4e404fb039cf48af2689e0669afa62989389c0582d", size = 46451, upload-time = "2025-10-10T05:53:48.71Z" },
 ]
 
 [package.optional-dependencies]
@@ -107,7 +107,7 @@ dependencies = [
     { name = "granian" },
     { name = "jamlib" },
     { name = "punq" },
-    { name = "pydantic" },
+    { name = "pydantic", extra = ["email"] },
     { name = "tortoise-orm", extra = ["asyncpg"] },
     { name = "uvloop" },
 ]
@@ -120,13 +120,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aerich", extras = ["toml"], specifier = ">=0.8.1" },
+    { name = "aerich", extras = ["toml"], specifier = ">=0.9.2" },
     { name = "fastapi", specifier = ">=0.129.0" },
     { name = "granian", specifier = ">=2.7.1" },
     { name = "jamlib", specifier = ">=2.5.5" },
     { name = "punq", specifier = ">=0.7.0" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "tortoise-orm", extras = ["asyncpg"], specifier = ">=1.1.1" },
+    { name = "pydantic", extras = ["email"], specifier = ">=2.0" },
+    { name = "tortoise-orm", extras = ["asyncpg"], specifier = ">=0.25.3" },
     { name = "uvloop", specifier = ">=0.22.1" },
 ]
 
@@ -232,6 +232,28 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/61/7b/35cbccb7effc5d7e40f4c55e2b79399e1853041997fcda15c9ff160abba0/dictdiffer-0.9.0.tar.gz", hash = "sha256:17bacf5fbfe613ccf1b6d512bd766e6b21fb798822a133aa86098b8ac9997578", size = 31513, upload-time = "2021-07-22T13:24:29.276Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/47/ef/4cb333825d10317a36a1154341ba37e6e9c087bac99c1990ef07ffdb376f/dictdiffer-0.9.0-py2.py3-none-any.whl", hash = "sha256:442bfc693cfcadaf46674575d2eba1c53b42f5e404218ca2c2ff549f2df56595", size = 16754, upload-time = "2021-07-22T13:24:26.783Z" },
+]
+
+[[package]]
+name = "dnspython"
+version = "2.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f", size = 368251, upload-time = "2025-09-07T18:58:00.022Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af", size = 331094, upload-time = "2025-09-07T18:57:58.071Z" },
+]
+
+[[package]]
+name = "email-validator"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
 ]
 
 [[package]]
@@ -433,6 +455,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/87/b70ad306ebb6f9b585f114d0ac2137d792b48be34d732d60e597c2f8465a/pydantic-2.12.5-py3-none-any.whl", hash = "sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d", size = 463580, upload-time = "2025-11-26T15:11:44.605Z" },
 ]
 
+[package.optional-dependencies]
+email = [
+    { name = "email-validator" },
+]
+
 [[package]]
 name = "pydantic-core"
 version = "2.41.5"
@@ -479,6 +506,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/cc/28/86ec1bccb2609d20349def444ef9dfe84aeccc984caa62f4634d50fee164/pypika_tortoise-0.6.3.tar.gz", hash = "sha256:6e17f00e77e78468836cb5c63eb6dc01445f83b1167e4f29f1c678949179c079", size = 80689, upload-time = "2025-11-26T22:07:08.293Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/6a/da5ba6830dd16cea2804163a2cecc1b2a85b8e06c61f0abb0477069d013d/pypika_tortoise-0.6.3-py3-none-any.whl", hash = "sha256:762e508093f4d73d3654cdde5bce8f92f8f41d999993c44d972d4f1703a663df", size = 46918, upload-time = "2025-11-26T22:07:07.052Z" },
+]
+
+[[package]]
+name = "pytz"
+version = "2025.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3", size = 320884, upload-time = "2025-03-25T02:25:00.538Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00", size = 509225, upload-time = "2025-03-25T02:24:58.468Z" },
 ]
 
 [[package]]
@@ -529,17 +565,18 @@ wheels = [
 
 [[package]]
 name = "tortoise-orm"
-version = "1.1.1"
+version = "0.25.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiosqlite" },
     { name = "anyio" },
     { name = "iso8601", marker = "python_full_version < '4'" },
     { name = "pypika-tortoise" },
+    { name = "pytz" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/c0/750eaf4fd42ad1d4b11b1dade3d78f6d6a6d7ec9b74a2fff207dae5a82ca/tortoise_orm-1.1.1.tar.gz", hash = "sha256:95770d1b97fe4fd12a8b673c2eb2beb5c97cfde11ada3c97107d0845cbdb7c69", size = 356856, upload-time = "2026-02-12T12:18:25.82Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/44/8a75e91a5d0e2e2545485de3e084fac1f4ff2ba4859e39240fa204c748d5/tortoise_orm-0.25.4.tar.gz", hash = "sha256:88c231ebe158f1287fc9c9497313f9a46cfb70b66c458ba39900921a4e52d01b", size = 232871, upload-time = "2026-02-02T17:57:10.825Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/10/5798c771cae8b28d05d99424338f4bb4b4db9c5481ad95c154fabb7c8487/tortoise_orm-1.1.1-py3-none-any.whl", hash = "sha256:77f3ff8dc556ca6ad9348c5898c678d8681d67f6226a72947b629a0fc060efce", size = 258211, upload-time = "2026-02-12T12:18:24.542Z" },
+    { url = "https://files.pythonhosted.org/packages/af/8c/c5825518f67fb9042c4020c272f4c872e10ea5358424e087eb943cef6561/tortoise_orm-0.25.4-py3-none-any.whl", hash = "sha256:a699e629632abf760d14794e8afd3579a9c844623d50a58a6fbdcd6f52b5a37d", size = 168512, upload-time = "2026-02-02T17:57:08.776Z" },
 ]
 
 [package.optional-dependencies]

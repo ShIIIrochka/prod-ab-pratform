@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from domain.value_objects.flag_value import FlagValueType
+from src.domain.value_objects.flag_value import FlagValueType
 
 
 @dataclass
 class FeatureFlag:
     key: str
     value_type: FlagValueType
-    default_value:  str | int | float | bool
+    default_value: str | int | float | bool
     description: str | None = None
 
     def __post_init__(self) -> None:

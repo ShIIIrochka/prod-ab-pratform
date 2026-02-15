@@ -8,7 +8,7 @@ from starlette.authentication import (
 )
 from starlette.requests import HTTPConnection
 
-from application.ports.jwt import JWTPort
+from src.application.ports.jwt import JWTPort
 
 
 class Payload(BaseUser):

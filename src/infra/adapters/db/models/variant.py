@@ -5,28 +5,14 @@ from tortoise.models import Model
 
 
 class VariantModel(Model):
-    """Tortoise модель для вариантов эксперимента.
-
-    Соответствует domain.entities.variant.Variant
-    """
-
-    id = fields.IntField(pk=True, description="Auto-increment ID")
-    experiment_id = fields.CharField(
-        max_length=36, index=True, description="Experiment UUID"
+    id = fields.UUIDField(pk=True)
+    name = fields.CharField(max_length=255, unique=True)
+    value = fields.JSONField()
+    weight = fields.FloatField()
+    is_control = fields.BooleanField()
+    experiment = fields.ForeignKeyField(
+        "models.ExperimentModel", related_name="variants"
     )
-    name = fields.CharField(
-        max_length=255, description="Variant name (unique in experiment)"
-    )
-
-    # Значение варианта (может быть str, int, float, bool)
-    value_json = fields.JSONField(description="Variant value (any type)")
-
-    weight = fields.FloatField(description="Traffic weight (0-1)")
-    is_control = fields.BooleanField(description="Is control variant flag")
 
     class Meta:
         table = "variants"
-        unique_together = [("experiment_id", "name")]
-        indexes = [
-            ("experiment_id",),
-        ]
