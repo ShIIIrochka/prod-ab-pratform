@@ -11,6 +11,7 @@ from src.domain.aggregates.experiment import Experiment
 from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.infra.adapters.db.models.approval import ApprovalModel
 from src.infra.adapters.db.models.experiment import ExperimentModel
+from src.infra.adapters.db.models.user import UserModel
 from src.infra.adapters.db.models.variant import VariantModel
 
 
@@ -47,26 +48,27 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
         if variant_models:
             try:
                 await VariantModel.bulk_create(variant_models)
-            except IntegrityError as e:
-                if "variants_name_key" in str(e):
-                    msg = (
-                        f"Variant name already exists: "
-                        f"{', '.join(v.name for v in experiment.variants)}"
-                    )
-                    raise ValueError(msg) from e
-                raise
+            except IntegrityError:
+                msg = (
+                    f"Variant name already exists: "
+                    f"{', '.join(v.name for v in experiment.variants)}"
+                )
+                raise ValueError(msg)
 
         await ApprovalModel.filter(experiment_id=experiment.id).delete()
-        approval_models = [
-            ApprovalModel(
-                experiment_id=experiment.id,
-                user_id=a.user_id,
-                comment=a.comment,
-                timestamp=a.timestamp,
-            )
-            for a in experiment.approvals
-        ]
-        if approval_models:
+        if experiment.approvals:
+            experiment_model = await ExperimentModel.get(id=experiment.id)
+            approval_models = []
+            for a in experiment.approvals:
+                user_model = await UserModel.get(id=a.user_id)
+                approval_models.append(
+                    ApprovalModel(
+                        experiment=experiment_model,
+                        user=user_model,
+                        comment=a.comment,
+                        timestamp=a.timestamp,
+                    )
+                )
             await ApprovalModel.bulk_create(approval_models)
 
     async def get_by_id(self, experiment_id: UUID) -> Experiment | None:

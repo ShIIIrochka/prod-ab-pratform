@@ -18,6 +18,7 @@ class ApprovalModel(Model):
         "models.UserModel",
         related_name="approvals_given",
         on_delete=OnDelete.RESTRICT,
+        to_field="id",
     )
     comment = fields.TextField(null=True)
     timestamp = fields.DatetimeField(auto_now_add=True)
