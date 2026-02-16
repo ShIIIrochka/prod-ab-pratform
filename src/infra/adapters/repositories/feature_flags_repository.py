@@ -13,3 +13,11 @@ class FeatureFlagsRepository(FeatureFlagsRepositoryPort):
         if model is None:
             return None
         return model.to_domain()
+
+    async def save(self, flag: FeatureFlag) -> None:
+        model = FeatureFlagModel.from_domain(flag)
+        await model.save()
+
+    async def list_all(self) -> list[FeatureFlag]:
+        models = await FeatureFlagModel.all()
+        return [m.to_domain() for m in models]

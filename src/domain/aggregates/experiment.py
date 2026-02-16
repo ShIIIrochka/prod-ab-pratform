@@ -174,7 +174,7 @@ class Experiment(BaseEntity):
         outcome: ExperimentOutcome,
         comment: str,
         completed_by: UUID,
-        winner_variant_id: str,
+        winner_variant_id: str | None,
     ) -> None:
         if self.status not in (
             ExperimentStatus.RUNNING,

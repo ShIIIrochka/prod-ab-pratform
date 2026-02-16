@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +21,7 @@ class DecideRequest(BaseModel):
 
 
 class DecisionResponse(BaseModel):
-    decision_id: str
+    id: UUID
     subject_id: str
     flag_key: str
     value: str | int | float | bool

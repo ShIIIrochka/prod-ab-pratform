@@ -10,24 +10,40 @@ from src.application.ports.feature_flags_repository import (
 )
 from src.application.ports.jwt import JWTPort
 from src.application.ports.password_hasher import PasswordHasherPort
+from src.application.ports.uow import UnitOfWorkPort
 from src.application.ports.users_repository import UsersRepositoryPort
-from src.application.usecases.auth.login import LoginUseCase
-from src.application.usecases.decide import DecideUseCase
-from src.application.usecases.user.create import CreateUserUseCase
-from src.application.usecases.user.get_by_id import GetUserByIdUseCase
+from src.application.usecases import (
+    ApproveExperimentUseCase,
+    CompleteExperimentUseCase,
+    CreateExperimentUseCase,
+    CreateFeatureFlagUseCase,
+    CreateUserUseCase,
+    DecideUseCase,
+    GetExperimentUseCase,
+    GetFeatureFlagUseCase,
+    GetUserByIdUseCase,
+    LaunchExperimentUseCase,
+    ListExperimentsUseCase,
+    ListFeatureFlagsUseCase,
+    LoginUseCase,
+    PauseExperimentUseCase,
+    RejectExperimentUseCase,
+    RequestChangesUseCase,
+    ResumeExperimentUseCase,
+    SendExperimentToReviewUseCase,
+    UpdateExperimentUseCase,
+    UpdateFeatureFlagDefaultValueUseCase,
+)
 from src.infra.adapters.config import Config
+from src.infra.adapters.db.uow import UnitOfWork
 from src.infra.adapters.jwt import JWTAdapter
 from src.infra.adapters.password_hasher import PasswordHasher
-from src.infra.adapters.repositories.decisions_repository import (
+from src.infra.adapters.repositories import (
     DecisionsRepository,
-)
-from src.infra.adapters.repositories.experiments_repository import (
     ExperimentsRepository,
-)
-from src.infra.adapters.repositories.feature_flags_repository import (
     FeatureFlagsRepository,
+    UserRepository,
 )
-from src.infra.adapters.repositories.users_repository import UserRepository
 
 
 def create_container() -> Container:
@@ -56,6 +72,7 @@ def create_container() -> Container:
         ),
     )
     container.register(PasswordHasherPort, PasswordHasher)
+    container.register(UnitOfWorkPort, UnitOfWork)
 
     container.register(UsersRepositoryPort, UserRepository)
     container.register(DecisionsRepositoryPort, DecisionsRepository)
@@ -66,5 +83,23 @@ def create_container() -> Container:
     container.register(LoginUseCase)
     container.register(GetUserByIdUseCase)
     container.register(DecideUseCase)
+
+    container.register(CreateFeatureFlagUseCase)
+    container.register(GetFeatureFlagUseCase)
+    container.register(ListFeatureFlagsUseCase)
+    container.register(UpdateFeatureFlagDefaultValueUseCase)
+
+    container.register(CreateExperimentUseCase)
+    container.register(GetExperimentUseCase)
+    container.register(ListExperimentsUseCase)
+    container.register(UpdateExperimentUseCase)
+    container.register(SendExperimentToReviewUseCase)
+    container.register(ApproveExperimentUseCase)
+    container.register(RequestChangesUseCase)
+    container.register(RejectExperimentUseCase)
+    container.register(LaunchExperimentUseCase)
+    container.register(PauseExperimentUseCase)
+    container.register(ResumeExperimentUseCase)
+    container.register(CompleteExperimentUseCase)
 
     return container

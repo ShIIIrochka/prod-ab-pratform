@@ -1,27 +1,36 @@
 from __future__ import annotations
 
 from tortoise import fields
+from tortoise.fields import OnDelete
 from tortoise.models import Model
+
+from src.domain.value_objects.approval import Approval
 
 
 class ApprovalModel(Model):
-    """Tortoise модель для одобрений эксперимента.
-
-    Соответствует domain.value_objects.approval.Approval
-    """
-
-    id = fields.IntField(pk=True, description="Auto-increment ID")
-    experiment_id = fields.CharField(
-        max_length=36, index=True, description="Experiment UUID"
+    id = fields.UUIDField(pk=True)
+    experiment = fields.ForeignKeyField(
+        "models.ExperimentModel",
+        related_name="approval_records",
+        on_delete=OnDelete.CASCADE,
     )
-    user_id = fields.CharField(max_length=36, description="Approver User UUID")
-    comment = fields.TextField(
-        null=True, description="Optional approval comment"
+    user = fields.ForeignKeyField(
+        "models.UserModel",
+        related_name="approvals_given",
+        on_delete=OnDelete.RESTRICT,
     )
-    timestamp = fields.DatetimeField(description="Approval timestamp")
+    comment = fields.TextField(null=True)
+    timestamp = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
         table = "approvals"
         indexes = [
             ("experiment_id", "user_id"),
         ]
+
+    def to_domain(self) -> Approval:
+        return Approval(
+            user_id=str(self.user_id),
+            comment=self.comment,
+            timestamp=self.timestamp,
+        )

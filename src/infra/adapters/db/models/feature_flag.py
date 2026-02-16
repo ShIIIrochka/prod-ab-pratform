@@ -27,7 +27,7 @@ class FeatureFlagModel(Model):
         return FeatureFlag(
             key=self.key,
             value_type=self.value_type,
-            default_value=self.default_value,
+            default_value=self.default_value.get("value"),
             description=self.description,
         )
 
@@ -36,6 +36,6 @@ class FeatureFlagModel(Model):
         return cls(
             key=feature_flag.key,
             value_type=feature_flag.value_type,
-            default_value=feature_flag.default_value,
+            default_value={"value": feature_flag.default_value},
             description=feature_flag.description,
         )

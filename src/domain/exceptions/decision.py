@@ -11,3 +11,8 @@ class FeatureFlagNotFoundError(Exception):
 @dataclass
 class ExperimentNotFoundError(Exception):
     message = "Experiment not found"
+
+
+@dataclass
+class FeatureFlagAlreadyExistsError(Exception):
+    message = "Feature flag with this key already exists"

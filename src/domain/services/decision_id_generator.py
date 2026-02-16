@@ -11,21 +11,6 @@ def generate_deterministic_decision_id(
     experiment_id: UUID | None,
     variant_id: str | None,
 ) -> UUID:
-    """Генерирует детерминированный UUID для решения.
-
-    Обеспечивает идемпотентность: одинаковые параметры в рамках одного дня
-    → один и тот же decision_id. Это критично для корректной атрибуции событий
-    при ретраях запросов (ТЗ 3.5.3).
-
-    Args:
-        subject_id: Идентификатор субъекта
-        flag_key: Ключ feature flag
-        experiment_id: UUID эксперимента (или None если не применился)
-        variant_id: ID варианта (или None если не применился)
-
-    Returns:
-        Детерминированный UUID v4
-    """
     seed_parts = [
         subject_id,
         flag_key,

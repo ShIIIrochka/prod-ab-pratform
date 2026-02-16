@@ -19,17 +19,19 @@ class FeatureFlag:
         if self.value_type == FlagValueType.STRING and not isinstance(
             value, str
         ):
-            msg = f"Expected str for STRING type, got {type(value)}"
+            msg = (
+                f"Expected str for STRING type, got {value.__class__.__name__}"
+            )
             raise ValueError(msg)
         if self.value_type == FlagValueType.NUMBER and not isinstance(
             value, int | float
         ):
-            msg = f"Expected int/float for NUMBER type, got {type(value)}"
+            msg = f"Expected int/float for NUMBER type, got {value.__class__.__name__}"
             raise ValueError(msg)
         if self.value_type == FlagValueType.BOOL and not isinstance(
             value, bool
         ):
-            msg = f"Expected bool for BOOL type, got {type(value)}"
+            msg = f"Expected bool for BOOL type, got {value.__class__.__name__}"
             raise ValueError(msg)
 
     def update_default_value(self, new_value: str | int | float | bool) -> None:

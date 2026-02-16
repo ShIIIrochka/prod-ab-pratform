@@ -17,4 +17,3 @@ if __name__ == "__main__":
 
     server = Server(target=app, interface="asgi")
     asyncio.run(server.serve())
-2

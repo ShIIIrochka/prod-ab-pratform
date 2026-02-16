@@ -1,0 +1,60 @@
+from __future__ import annotations
+
+from uuid import UUID, uuid4
+
+from src.application.dto.experiment import ExperimentUpdateRequest
+from src.application.ports.experiments_repository import (
+    ExperimentsRepositoryPort,
+)
+from src.application.ports.uow import UnitOfWorkPort
+from src.domain.aggregates.experiment import Experiment
+from src.domain.entities.variant import Variant
+from src.domain.exceptions.decision import ExperimentNotFoundError
+from src.domain.value_objects.targeting_rule import TargetingRule
+
+
+class UpdateExperimentUseCase:
+    def __init__(
+        self,
+        experiments_repository: ExperimentsRepositoryPort,
+        uow: UnitOfWorkPort,
+    ) -> None:
+        self._experiments_repository = experiments_repository
+        self._uow = uow
+
+    async def execute(
+        self, experiment_id: UUID, data: ExperimentUpdateRequest
+    ) -> Experiment:
+        experiment = await self._experiments_repository.get_by_id(experiment_id)
+        if not experiment:
+            raise ExperimentNotFoundError
+
+        if not experiment.can_be_edited():
+            msg = f"Cannot edit experiment in status {experiment.status}"
+            raise ValueError(msg)
+
+        if data.name is not None:
+            experiment.name = data.name
+
+        if data.audience_fraction is not None:
+            experiment.audience_fraction = data.audience_fraction
+
+        if data.variants is not None:
+            experiment.variants = [
+                Variant(
+                    id=uuid4(),
+                    name=v.name,
+                    value=v.value,
+                    weight=v.weight,
+                    is_control=v.is_control,
+                )
+                for v in data.variants
+            ]
+
+        if data.targeting_rule is not None:
+            experiment.targeting_rule = TargetingRule(
+                rule_expression=data.targeting_rule
+            )
+
+        await self._experiments_repository.save(experiment)
+        return experiment

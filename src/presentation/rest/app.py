@@ -13,7 +13,12 @@ from src.infra.adapters.db.db import Database
 from src.presentation.rest.dependencies import container
 from src.presentation.rest.exception_handlers import setup_exc_handlers
 from src.presentation.rest.middlewares import JWTBackend
-from src.presentation.rest.routes import auth, decide
+from src.presentation.rest.routes import (
+    auth,
+    decide,
+    experiments,
+    feature_flags,
+)
 
 
 @asynccontextmanager
@@ -56,5 +61,7 @@ def create_app() -> FastAPI:
     setup_exc_handlers(app)
     app.include_router(auth.router)
     app.include_router(decide.router)
+    app.include_router(feature_flags.router)
+    app.include_router(experiments.router)
 
     return app

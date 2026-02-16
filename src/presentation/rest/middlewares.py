@@ -1,19 +1,22 @@
-from typing import Any
+from dataclasses import dataclass
 
+from fastapi import HTTPException, Request
 from starlette.authentication import (
     AuthCredentials,
     AuthenticationBackend,
-    AuthenticationError,
     BaseUser,
 )
 from starlette.requests import HTTPConnection
+from starlette.status import HTTP_401_UNAUTHORIZED
 
 from src.application.ports.jwt import JWTPort
+from src.domain.value_objects.user_role import UserRole
 
 
-class Payload(BaseUser):
-    def __init__(self, payload: dict[str, Any]):
-        self.payload = payload
+@dataclass(slots=True)
+class AuthUser(BaseUser):
+    id: str
+    role: UserRole
 
     @property
     def is_authenticated(self) -> bool:
@@ -50,7 +53,17 @@ class JWTBackend(AuthenticationBackend):
         try:
             payload = await self._jwt.verify(token=token)
         except Exception:
-            raise AuthenticationError("Token verification failed.")
-        return AuthCredentials(["authenticated", payload.role]), Payload(
-            payload=payload.__dict__
+            # raise AuthenticationError("Token verification failed.")
+            return None
+        return AuthCredentials(["authenticated", payload.role]), AuthUser(
+            id=payload.user_id, role=UserRole(payload.role)
+        )
+
+    @classmethod
+    async def auth_required(cls, request: Request):
+        if request.user.is_authenticated:
+            return
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="User is not authenticated.",
         )

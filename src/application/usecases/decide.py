@@ -10,7 +10,10 @@ from src.application.ports.experiments_repository import (
 from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
+from src.application.ports.uow import UnitOfWorkPort
+from src.application.ports.users_repository import UsersRepositoryPort
 from src.domain.aggregates.decision import Decision
+from src.domain.exceptions import UserNotFoundError
 from src.domain.exceptions.decision import FeatureFlagNotFoundError
 from src.domain.services.decision_engine import compute_decision
 from src.domain.services.decision_id_generator import (
@@ -24,16 +27,24 @@ class DecideUseCase:
         feature_flags_repository: FeatureFlagsRepositoryPort,
         experiments_repository: ExperimentsRepositoryPort,
         decisions_repository: DecisionsRepositoryPort,
+        user_repository: UsersRepositoryPort,
+        uow: UnitOfWorkPort,
     ) -> None:
         self._feature_flags_repository = feature_flags_repository
         self._experiments_repository = experiments_repository
         self._decisions_repository = decisions_repository
+        self._user_repository = user_repository
+        self._uow = uow
 
     async def execute(self, data: DecideRequest) -> Decision:
         flag = await self._feature_flags_repository.get_by_key(data.flag_key)
 
         if flag is None:
             raise FeatureFlagNotFoundError
+
+        user = await self._user_repository.get_by_id(data.subject_id)
+        if not user:
+            raise UserNotFoundError
 
         experiment = await self._experiments_repository.get_active_by_flag_key(
             data.flag_key
@@ -47,7 +58,7 @@ class DecideUseCase:
 
         if decision_result.applied and experiment:
             value = decision_result.value
-            experiment_id = experiment.id  # UUID
+            experiment_id = experiment.id
             variant_id = decision_result.variant_id
             experiment_version = experiment.version
         else:
@@ -63,9 +74,8 @@ class DecideUseCase:
             variant_id=variant_id,
         )
 
-        # Проверяем, существует ли уже решение с таким ID (идемпотентность)
         existing_decision = await self._decisions_repository.get_by_id(
-            str(decision_id)
+            decision_id
         )
 
         if existing_decision:
@@ -80,6 +90,7 @@ class DecideUseCase:
                 variant_id=variant_id,
                 experiment_version=experiment_version,
             )
-            await self._decisions_repository.save(decision)
+            async with self._uow:
+                await self._decisions_repository.save(decision)
 
         return decision

@@ -21,10 +21,6 @@ class ExperimentCompletion:
     completed_by: UUID
 
     def __post_init__(self) -> None:
-        """Валидация завершения эксперимента."""
-        if not self.comment or not self.comment.strip():
-            msg = "Completion comment is required and cannot be empty"
-            raise ValueError(msg)
         if (
             self.outcome == ExperimentOutcome.ROLLOUT_WINNER
             and not self.winner_variant_id

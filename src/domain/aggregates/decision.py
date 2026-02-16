@@ -22,11 +22,5 @@ class Decision(BaseEntity):
             msg = "Variant ID is required when experiment ID is set"
             raise ValueError(msg)
 
-    @property
-    def decision_id(self) -> str:
-        """Служебный идентификатор решения для связывания с событиями (ТЗ 3.3)."""
-        return str(self.id)
-
     def is_from_experiment(self) -> bool:
-        """Проверяет, выдано ли решение из эксперимента."""
         return self.experiment_id is not None

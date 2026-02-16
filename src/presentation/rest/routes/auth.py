@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Request, Security, status
 
 from src.application.dto.auth import (
     LoginRequest,
@@ -10,12 +8,17 @@ from src.application.dto.auth import (
     TokenResponse,
 )
 from src.application.dto.user import UserResponse
+from src.application.usecases import GetUserByIdUseCase
 from src.application.usecases.auth.login import LoginUseCase
 from src.application.usecases.user.create import CreateUserUseCase
-from src.presentation.rest.dependencies import Container, get_current_user
+from src.presentation.rest.dependencies import Container
+from src.presentation.rest.middlewares import JWTBackend
 
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(
+    prefix="/auth",
+    tags=["Auth"],
+)
 
 
 @router.post(
@@ -23,7 +26,6 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
 )
-# @requires(["authenticated", "admin"])
 async def register(
     data: RegisterRequest,
     container: Container,
@@ -34,7 +36,6 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
-# @requires(["authenticated"])
 async def login(
     request: Request,
     data: LoginRequest,
@@ -45,9 +46,15 @@ async def login(
     return TokenResponse.model_validate(response)
 
 
-@router.get("/me", response_model=UserResponse)
-# @requires(["authenticated"])
+@router.get(
+    "/me",
+    dependencies=[Security(JWTBackend.auth_required)],
+    response_model=UserResponse,
+)
 async def get_me(
-    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    request: Request,
+    container: Container,
 ) -> UserResponse:
-    return current_user
+    use_case = container.resolve(GetUserByIdUseCase)
+    user = await use_case.execute(request.user.id)
+    return UserResponse.model_validate(user)
