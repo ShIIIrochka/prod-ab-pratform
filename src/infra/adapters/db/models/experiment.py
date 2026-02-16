@@ -63,10 +63,13 @@ class ExperimentModel(Model):
                 completed_by=UUID(self.completion["completed_by"]),
             )
 
+        variants_list = await self.variants.all()
+        variants = [variant.to_domain() for variant in variants_list]
+
         return Experiment(
             id=self.id,
             flag_key=self.flag_key,
-            variants=[variant.to_domain() for variant in self.variants],
+            variants=variants,
             owner_id=str(self.owner.id),
             name=self.name,
             status=self.status,

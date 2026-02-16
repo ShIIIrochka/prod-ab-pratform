@@ -31,8 +31,13 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
         return await model.to_domain()
 
     async def save(self, experiment: Experiment) -> None:
-        model = ExperimentModel.from_domain(experiment)
-        await model.save()
+        existing_model = await ExperimentModel.get_or_none(id=experiment.id)
+        if existing_model:
+            model = ExperimentModel.from_domain(experiment)
+            await model.save(force_update=True)
+        else:
+            model = ExperimentModel.from_domain(experiment)
+            await model.save()
 
         await VariantModel.filter(experiment_id=experiment.id).delete()
         variant_models = [
@@ -42,9 +47,14 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
         if variant_models:
             try:
                 await VariantModel.bulk_create(variant_models)
-            except IntegrityError:
-                msg = "Variant name already exists"
-                raise ValueError(msg)
+            except IntegrityError as e:
+                if "variants_name_key" in str(e):
+                    msg = (
+                        f"Variant name already exists: "
+                        f"{', '.join(v.name for v in experiment.variants)}"
+                    )
+                    raise ValueError(msg) from e
+                raise
 
         await ApprovalModel.filter(experiment_id=experiment.id).delete()
         approval_models = [
@@ -62,8 +72,8 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
     async def get_by_id(self, experiment_id: UUID) -> Experiment | None:
         model = (
             await ExperimentModel.filter(id=experiment_id)
-            .first()
             .prefetch_related("variants", "owner")
+            .first()
         )
         if model is None:
             return None
