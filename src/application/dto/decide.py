@@ -25,8 +25,9 @@ class DecisionResponse(BaseModel):
     subject_id: str
     flag_key: str
     value: str | int | float | bool
-    experiment_id: str | None = None
-    variant_id: str | None = None
+    experiment_id: UUID | None = None
+    variant_id: UUID | None = None
+    variant_name: str | None = None
     timestamp: datetime
 
     class Config:

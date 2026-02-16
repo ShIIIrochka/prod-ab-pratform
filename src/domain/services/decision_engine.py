@@ -3,17 +3,31 @@ from __future__ import annotations
 import hashlib
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
 from src.domain.value_objects.experiment_status import ExperimentStatus
 
 
+# #region agent log
+LOG_PATH = Path(
+    "/Users/ksenia/Projects/backend-student-ksenia/.cursor/debug.log"
+)
+# #endregion
+
+
 def _stable_hash_bucket(
     subject_id: str, experiment_id: str, version: int
 ) -> float:
-    """Детерминированно отображает (subject_id, experiment_id, version) в число в [0, 1)."""
+    """Детерминированно отображает (subject_id, experiment_id, version) в число в [0, 1).
+
+    Использует первые 8 байт хеша SHA256 для получения равномерно распределенного
+    значения в диапазоне [0, 1). Использует байты напрямую для избежания проблем
+    с точностью float при работе с очень большими числами.
+    """
     seed = f"{subject_id}:{experiment_id}:{version}"
     h = hashlib.sha256(seed.encode()).hexdigest()
     return int(h[:16], 16) / (16**16)
@@ -59,7 +73,8 @@ class DecisionResult:
 
     applied: bool
     value: str | int | float | bool
-    variant_id: str | None = None
+    variant_id: UUID | None = None
+    variant_name: str | None = None
 
 
 def compute_decision(
@@ -107,5 +122,8 @@ def compute_decision(
         )
 
     return DecisionResult(
-        applied=True, value=variant.value, variant_id=variant.name
+        applied=True,
+        value=variant.value,
+        variant_id=variant.id,
+        variant_name=variant.name,
     )

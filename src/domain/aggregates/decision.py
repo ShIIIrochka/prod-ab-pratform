@@ -13,7 +13,8 @@ class Decision(BaseEntity):
     flag_key: str
     value: str | int | float | bool
     experiment_id: UUID | None
-    variant_id: str | None
+    variant_id: UUID | None
+    variant_name: str | None
     experiment_version: int | None
     timestamp: datetime = datetime.utcnow()
 

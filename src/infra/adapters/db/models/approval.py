@@ -31,7 +31,7 @@ class ApprovalModel(Model):
 
     def to_domain(self) -> Approval:
         return Approval(
-            user_id=str(self.user_id),
+            user_id=str(self.user_id),  # type: ignore
             comment=self.comment,
             timestamp=self.timestamp,
         )

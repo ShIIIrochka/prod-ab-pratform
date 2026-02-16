@@ -22,9 +22,9 @@ class DecisionModel(Model):
         on_delete=OnDelete.SET_NULL,
         null=True,
     )
-    variant = fields.OneToOneField(
+    variant = fields.ForeignKeyField(
         "models.VariantModel",
-        related_name="decision",
+        related_name="decisions",
         on_delete=OnDelete.CASCADE,
         null=True,
     )
@@ -34,14 +34,17 @@ class DecisionModel(Model):
     class Meta:
         table = "decisions"
 
-    def to_domain(self) -> Decision:
+    async def to_domain(self) -> Decision:
+        variant = await self.variant if self.variant else None
+        experiment = await self.experiment if self.experiment else None
         return Decision(
             id=self.id,
-            subject_id=self.user_id,
+            subject_id=self.user_id,  # type: ignore
             flag_key=self.flag_key,
             value=self.value.get("value"),
-            experiment_id=self.experiment.id if self.experiment else None,
-            variant_id=self.variant.id if self.variant else None,
+            experiment_id=experiment.id if experiment else None,
+            variant_id=variant.id if variant else None,
+            variant_name=variant.name if variant else None,
             experiment_version=self.experiment_version,
             timestamp=self.timestamp,
         )

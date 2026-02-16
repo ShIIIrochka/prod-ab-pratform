@@ -8,8 +8,10 @@ from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
 from src.application.ports.uow import UnitOfWorkPort
+from src.application.ports.users_repository import UsersRepositoryPort
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
+from src.domain.exceptions import UserNotFoundError
 from src.domain.exceptions.decision import (
     FeatureFlagNotFoundError,
     VariantNameAlreadyExistsError,
@@ -23,10 +25,12 @@ class CreateExperimentUseCase:
         self,
         experiments_repository: ExperimentsRepositoryPort,
         feature_flags_repository: FeatureFlagsRepositoryPort,
+        user_repository: UsersRepositoryPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._feature_flags_repository = feature_flags_repository
+        self._user_repository = user_repository
         self._uow = uow
 
     async def execute(
@@ -35,6 +39,10 @@ class CreateExperimentUseCase:
         flag = await self._feature_flags_repository.get_by_key(data.flag_key)
         if not flag:
             raise FeatureFlagNotFoundError
+
+        user = await self._user_repository.get_by_id(owner_id)
+        if not user:
+            raise UserNotFoundError
 
         active_experiments = await self._experiments_repository.list_all(
             flag_key=data.flag_key

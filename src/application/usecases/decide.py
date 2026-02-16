@@ -60,18 +60,20 @@ class DecideUseCase:
             value = decision_result.value
             experiment_id = experiment.id
             variant_id = decision_result.variant_id
+            variant_name = decision_result.variant_name
             experiment_version = experiment.version
         else:
             value = flag.default_value
             experiment_id = None
             variant_id = None
+            variant_name = None
             experiment_version = None
 
         decision_id = generate_deterministic_decision_id(
             subject_id=data.subject_id,
             flag_key=data.flag_key,
             experiment_id=experiment_id,
-            variant_id=variant_id,
+            variant_id=str(variant_name),
         )
 
         existing_decision = await self._decisions_repository.get_by_id(
@@ -88,6 +90,7 @@ class DecideUseCase:
                 value=value,
                 experiment_id=experiment_id,
                 variant_id=variant_id,
+                variant_name=variant_name,
                 experiment_version=experiment_version,
             )
             async with self._uow:
