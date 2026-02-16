@@ -10,7 +10,10 @@ from src.application.ports.feature_flags_repository import (
 from src.application.ports.uow import UnitOfWorkPort
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
-from src.domain.exceptions.decision import FeatureFlagNotFoundError
+from src.domain.exceptions.decision import (
+    FeatureFlagNotFoundError,
+    VariantNameAlreadyExistsError,
+)
 from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.domain.value_objects.targeting_rule import TargetingRule
 
@@ -72,6 +75,11 @@ class CreateExperimentUseCase:
             approvals=[],
             completion=None,
         )
-        async with self._uow:
-            await self._experiments_repository.save(experiment)
+        try:
+            async with self._uow:
+                await self._experiments_repository.save(experiment)
+        except ValueError as e:
+            if "Variant name already exists" in str(e):
+                raise VariantNameAlreadyExistsError from e
+            raise
         return experiment

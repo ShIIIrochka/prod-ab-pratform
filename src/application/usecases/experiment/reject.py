@@ -45,5 +45,6 @@ class RejectExperimentUseCase:
             raise UserNotFoundError
 
         experiment.reject(owner, rejecting_user, data.comment)
-        await self._experiments_repository.save(experiment)
+        async with self._uow:
+            await self._experiments_repository.save(experiment)
         return experiment

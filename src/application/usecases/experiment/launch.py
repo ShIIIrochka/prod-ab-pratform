@@ -41,5 +41,6 @@ class LaunchExperimentUseCase:
             raise UserNotFoundError
 
         experiment.launch(owner, launching_user)
-        await self._experiments_repository.save(experiment)
+        async with self._uow:
+            await self._experiments_repository.save(experiment)
         return experiment

@@ -16,3 +16,8 @@ class ExperimentNotFoundError(Exception):
 @dataclass
 class FeatureFlagAlreadyExistsError(Exception):
     message = "Feature flag with this key already exists"
+
+
+@dataclass
+class VariantNameAlreadyExistsError(Exception):
+    message = "Variant with this name already exists"

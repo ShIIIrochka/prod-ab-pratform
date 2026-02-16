@@ -9,7 +9,10 @@ from src.application.ports.experiments_repository import (
 from src.application.ports.uow import UnitOfWorkPort
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
-from src.domain.exceptions.decision import ExperimentNotFoundError
+from src.domain.exceptions.decision import (
+    ExperimentNotFoundError,
+    VariantNameAlreadyExistsError,
+)
 from src.domain.value_objects.targeting_rule import TargetingRule
 
 
@@ -56,5 +59,11 @@ class UpdateExperimentUseCase:
                 rule_expression=data.targeting_rule
             )
 
-        await self._experiments_repository.save(experiment)
+        try:
+            async with self._uow:
+                await self._experiments_repository.save(experiment)
+        except ValueError as e:
+            if "Variant name already exists" in str(e):
+                raise VariantNameAlreadyExistsError from e
+            raise
         return experiment

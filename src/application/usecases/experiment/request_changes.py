@@ -45,5 +45,6 @@ class RequestChangesUseCase:
             raise UserNotFoundError
 
         experiment.request_changes(owner, requesting_user, data.comment)
-        await self._experiments_repository.save(experiment)
+        async with self._uow:
+            await self._experiments_repository.save(experiment)
         return experiment

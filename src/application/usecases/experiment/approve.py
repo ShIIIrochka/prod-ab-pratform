@@ -43,5 +43,6 @@ class ApproveExperimentUseCase:
             raise UserNotFoundError
 
         experiment.approve(owner, approver, data.comment)
-        await self._experiments_repository.save(experiment)
+        async with self._uow:
+            await self._experiments_repository.save(experiment)
         return experiment

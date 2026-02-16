@@ -9,6 +9,7 @@ from src.domain.exceptions import (
     FeatureFlagNotFoundError,
     UserAlreadyExistsError,
     UserNotFoundError,
+    VariantNameAlreadyExistsError,
 )
 from src.domain.exceptions.experiment import CannotReviewExperimentError
 
@@ -74,5 +75,14 @@ def setup_exc_handlers(app: FastAPI) -> None:
     ) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
+            content={"message": exc.message},
+        )
+
+    @app.exception_handler(VariantNameAlreadyExistsError)
+    async def variant_name_already_exists_exception_handler(
+        request: Request, exc: VariantNameAlreadyExistsError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
             content={"message": exc.message},
         )

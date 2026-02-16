@@ -36,5 +36,6 @@ class CompleteExperimentUseCase:
             completed_by=completed_by,
             winner_variant_id=data.winner_variant_id,
         )
-        await self._experiments_repository.save(experiment)
+        async with self._uow:
+            await self._experiments_repository.save(experiment)
         return experiment

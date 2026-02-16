@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from tortoise.exceptions import IntegrityError
+
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
@@ -38,7 +40,11 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
             for v in experiment.variants
         ]
         if variant_models:
-            await VariantModel.bulk_create(variant_models)
+            try:
+                await VariantModel.bulk_create(variant_models)
+            except IntegrityError:
+                msg = "Variant name already exists"
+                raise ValueError(msg)
 
         await ApprovalModel.filter(experiment_id=experiment.id).delete()
         approval_models = [
@@ -56,9 +62,8 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
     async def get_by_id(self, experiment_id: UUID) -> Experiment | None:
         model = (
             await ExperimentModel.filter(id=experiment_id)
-            .prefetch_related("variants")
-            .prefetch_related("owner")
             .first()
+            .prefetch_related("variants", "owner")
         )
         if model is None:
             return None
