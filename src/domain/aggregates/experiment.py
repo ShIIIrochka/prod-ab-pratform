@@ -162,13 +162,6 @@ class Experiment(BaseEntity):
         self.status = ExperimentStatus.PAUSED
         self.updated_at = datetime.utcnow()
 
-    def resume(self) -> None:
-        if self.status != ExperimentStatus.PAUSED:
-            msg = f"Cannot resume experiment in status {self.status}"
-            raise ValueError(msg)
-        self.status = ExperimentStatus.RUNNING
-        self.updated_at = datetime.utcnow()
-
     def complete(
         self,
         outcome: ExperimentOutcome,
@@ -238,16 +231,3 @@ class Experiment(BaseEntity):
             if v.is_control:
                 return v
         raise ValueError("Experiment must have exactly one control variant")
-
-    def freeze_configuration(self) -> None:
-        """Замораживает конфигурацию после запуска.
-
-        После перехода в RUNNING или PAUSED нельзя менять параметры раздачи.
-        """
-        # Этот метод будет вызываться перед изменением параметров
-        if self.status in (ExperimentStatus.RUNNING, ExperimentStatus.PAUSED):
-            msg = (
-                f"Cannot modify experiment configuration after launch. "
-                f"Current status: {self.status}"
-            )
-            raise ValueError(msg)

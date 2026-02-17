@@ -3,20 +3,12 @@ from __future__ import annotations
 import hashlib
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
 from src.domain.value_objects.experiment_status import ExperimentStatus
-
-
-# #region agent log
-LOG_PATH = Path(
-    "/Users/ksenia/Projects/backend-student-ksenia/.cursor/debug.log"
-)
-# #endregion
 
 
 def _stable_hash_bucket(

@@ -20,4 +20,4 @@ class ExperimentStatus(StrEnum):
         return self == ExperimentStatus.DRAFT
 
     def can_be_launched(self) -> bool:
-        return self == ExperimentStatus.APPROVED
+        return self in (ExperimentStatus.APPROVED, ExperimentStatus.PAUSED)

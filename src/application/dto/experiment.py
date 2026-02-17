@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from src.domain.value_objects.experiment_completion import ExperimentOutcome
 from src.domain.value_objects.experiment_status import ExperimentStatus
+from src.domain.value_objects.targeting_rule import TargetingRule
 
 
 class VariantInput(BaseModel):
@@ -59,7 +60,7 @@ class ExperimentResponse(BaseModel):
     variants: list[VariantResponse] = Field(
         ..., description="Experiment variants"
     )
-    targeting_rule: str | None = Field(
+    targeting_rule: TargetingRule | None = Field(
         None, description="Optional targeting rule expression"
     )
     owner_id: str = Field(..., description="Owner user ID")
