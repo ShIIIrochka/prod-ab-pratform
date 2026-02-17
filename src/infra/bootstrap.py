@@ -29,7 +29,6 @@ from src.application.usecases import (
     PauseExperimentUseCase,
     RejectExperimentUseCase,
     RequestChangesUseCase,
-    ResumeExperimentUseCase,
     SendExperimentToReviewUseCase,
     UpdateExperimentUseCase,
     UpdateFeatureFlagDefaultValueUseCase,
@@ -99,7 +98,6 @@ def create_container() -> Container:
     container.register(RejectExperimentUseCase)
     container.register(LaunchExperimentUseCase)
     container.register(PauseExperimentUseCase)
-    container.register(ResumeExperimentUseCase)
     container.register(CompleteExperimentUseCase)
 
     return container

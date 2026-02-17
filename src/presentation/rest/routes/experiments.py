@@ -26,7 +26,6 @@ from src.application.usecases import (
     PauseExperimentUseCase,
     RejectExperimentUseCase,
     RequestChangesUseCase,
-    ResumeExperimentUseCase,
     SendExperimentToReviewUseCase,
     UpdateExperimentUseCase,
 )
@@ -189,20 +188,6 @@ async def pause_experiment(
     ],
 ) -> ExperimentResponse:
     use_case = container.resolve(PauseExperimentUseCase)
-    experiment = await use_case.execute(experiment_id)
-    return ExperimentResponse.model_validate(experiment)
-
-
-@router.post("/{experiment_id}/resume", response_model=ExperimentResponse)
-async def resume_experiment(
-    experiment_id: UUID,
-    container: Container,
-    _: Annotated[
-        UserResponse,
-        Depends(require_roles([UserRole.ADMIN, UserRole.EXPERIMENTER])),
-    ],
-) -> ExperimentResponse:
-    use_case = container.resolve(ResumeExperimentUseCase)
     experiment = await use_case.execute(experiment_id)
     return ExperimentResponse.model_validate(experiment)
 
