@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Security, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Security, status
 
 from src.application.dto.event_type import (
     EventTypeCreateRequest,
@@ -10,8 +12,9 @@ from src.application.dto.event_type import (
 from src.application.usecases.event_type.create import CreateEventTypeUseCase
 from src.application.usecases.event_type.get import GetEventTypeUseCase
 from src.application.usecases.event_type.list import ListEventTypesUseCase
-from src.presentation.rest.dependencies import Container
-from src.presentation.rest.middlewares import JWTBackend
+from src.domain.value_objects.user_role import UserRole
+from src.presentation.rest.dependencies import Container, require_roles
+from src.presentation.rest.middlewares import AuthUser, JWTBackend
 
 
 router = APIRouter(
@@ -29,6 +32,7 @@ router = APIRouter(
 async def create_event_type(
     data: EventTypeCreateRequest,
     container: Container,
+    _: Annotated[AuthUser, Depends(require_roles([UserRole.ADMIN]))],
 ) -> EventTypeResponse:
     use_case = container.resolve(CreateEventTypeUseCase)
     event_type = await use_case.execute(data)

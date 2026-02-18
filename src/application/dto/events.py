@@ -25,16 +25,12 @@ class SendEventsRequest(BaseModel):
 
 
 class EventErrorDetail(BaseModel):
-    """Детали ошибки обработки события."""
-
     index: int = Field(..., description="Index of the event in the request")
     event_type_key: str = Field(..., description="Event type key")
     reason: str = Field(..., description="Error reason")
 
 
 class SendEventsResponse(BaseModel):
-    """Результат обработки событий."""
-
     accepted: int = Field(..., description="Number of accepted events")
     duplicates: int = Field(..., description="Number of duplicate events")
     rejected: int = Field(..., description="Number of rejected events")
