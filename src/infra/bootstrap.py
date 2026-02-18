@@ -121,7 +121,23 @@ def create_container() -> Container:
     container.register(CreateUserUseCase)
     container.register(LoginUseCase)
     container.register(GetUserByIdUseCase)
-    container.register(DecideUseCase)
+    container.register(
+        DecideUseCase,
+        factory=lambda: DecideUseCase(
+            feature_flags_repository=container.resolve(
+                FeatureFlagsRepositoryPort
+            ),
+            experiments_repository=container.resolve(ExperimentsRepositoryPort),
+            decisions_repository=container.resolve(DecisionsRepositoryPort),
+            user_repository=container.resolve(UsersRepositoryPort),
+            uow=container.resolve(UnitOfWorkPort),
+            max_concurrent_experiments=config.max_concurrent_experiments,
+            cooldown_period_days=config.cooldown_period_days,
+            experiments_before_cooldown=config.experiments_before_cooldown,
+            cooldown_experiment_probability=config.cooldown_experiment_probability,
+            rotation_period_days=config.rotation_period_days,
+        ),
+    )
 
     container.register(CreateFeatureFlagUseCase)
     container.register(GetFeatureFlagUseCase)

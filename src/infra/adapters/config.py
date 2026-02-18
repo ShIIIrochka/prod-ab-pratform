@@ -15,6 +15,11 @@ class Config:
     jwt_refresh_expires: int
     redis_url: str
     pending_events_ttl_seconds: int
+    max_concurrent_experiments: int
+    cooldown_period_days: int
+    experiments_before_cooldown: int
+    cooldown_experiment_probability: float
+    rotation_period_days: int
 
     @classmethod
     def get_config(cls) -> Config:
@@ -35,8 +40,19 @@ class Config:
                     "REDIS_URL", "redis://localhost:6379/0"
                 ),
                 pending_events_ttl_seconds=int(
-                    os.environ.get("PENDING_EVENTS_TTL_SECONDS", "604800")
+                    os.environ.get("PENDING_EVENTS_TTL", "604800")
                 ),  # 7 дней по умолчанию
+                max_concurrent_experiments=int(
+                    os.environ["MAX_CONCURRENT_EXPERIMENTS"]
+                ),
+                cooldown_period_days=int(os.environ["COOLDOWN_DAYS"]),
+                experiments_before_cooldown=int(
+                    os.environ["EXPERIMENTS_BEFORE_COOLDOWN"]
+                ),
+                cooldown_experiment_probability=float(
+                    os.environ["COOLDOWN_PROBABILITY"]
+                ),
+                rotation_period_days=int(os.environ["ROTATION_DAYS"]),
             )
         except KeyError:
             raise RuntimeError("Required variables are not set")

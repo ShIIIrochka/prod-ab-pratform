@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -12,15 +13,18 @@ from src.domain.value_objects.experiment_status import ExperimentStatus
 
 
 def _stable_hash_bucket(
-    subject_id: str, experiment_id: str, version: int
+    subject_id: str,
+    experiment_id: str,
+    version: int,
+    epoch: int,
 ) -> float:
-    """Детерминированно отображает (subject_id, experiment_id, version) в число в [0, 1).
+    """Детерминированно отображает (subject_id, experiment_id, version, epoch) в число в [0, 1).
 
     Использует первые 8 байт хеша SHA256 для получения равномерно распределенного
     значения в диапазоне [0, 1). Использует байты напрямую для избежания проблем
     с точностью float при работе с очень большими числами.
     """
-    seed = f"{subject_id}:{experiment_id}:{version}"
+    seed = f"{subject_id}:{experiment_id}:{version}:{epoch}"
     h = hashlib.sha256(seed.encode()).hexdigest()
     return int(h[:16], 16) / (16**16)
 
@@ -39,18 +43,24 @@ def _build_cumulative_weights(variants_sorted: list[Variant]) -> list[float]:
     return result
 
 
+def _current_epoch(rotation_period_days: int) -> int:
+    if rotation_period_days <= 0:
+        return 0
+
+    now = datetime.utcnow().timestamp()
+    period_seconds = rotation_period_days * 24 * 60 * 60
+    return int(now // period_seconds)
+
+
 def _select_variant_by_weights(
-    subject_id: str,
     experiment: Experiment,
     variants_sorted: list[Variant],
     cumulative_weights: list[float],
+    bucket: float,
 ) -> Variant:
     """Выбирает вариант по детерминированному бакету и кумулятивным весам."""
-    bucket = _stable_hash_bucket(
-        subject_id, str(experiment.id), experiment.version
-    )
     if bucket >= experiment.audience_fraction:
-        return next(v for v in variants_sorted if v.is_control)
+        return experiment.get_control_variant()
     inner = bucket / experiment.audience_fraction
     total = experiment.audience_fraction
     for i, cum in enumerate(cumulative_weights):
@@ -73,30 +83,22 @@ def compute_decision(
     experiment: Experiment | None,
     subject_id: str,
     attributes: dict[str, Any],
+    rotation_period_days: int,
 ) -> DecisionResult:
-    """Принимает решение о том, какой вариант показать пользователю.
-
-    Args:
-        experiment: Эксперимент (может быть None)
-        subject_id: Идентификатор пользователя
-        attributes: Атрибуты для таргетинга
-
-    Returns:
-        DecisionResult с информацией о том, применился ли эксперимент,
-        значение и variant_id (если применился).
-    """
+    epoch = _current_epoch(rotation_period_days)
     # Если эксперимента нет или он не в статусе RUNNING - не применяется
     if experiment is None or experiment.status != ExperimentStatus.RUNNING:
         return DecisionResult(applied=False, value="", variant_id=None)
 
     # Проверяем таргетинг
     if experiment.targeting_rule is not None:
-        if not experiment.targeting_rule.evaluate(attributes):
+        targeting_result = experiment.targeting_rule.evaluate(attributes)
+        if not targeting_result:
             return DecisionResult(applied=False, value="", variant_id=None)
 
     # Проверяем попадание в аудиторию эксперимента
     bucket = _stable_hash_bucket(
-        subject_id, str(experiment.id), experiment.version
+        subject_id, str(experiment.id), experiment.version, epoch
     )
     if bucket >= experiment.audience_fraction:
         return DecisionResult(applied=False, value="", variant_id=None)
@@ -110,7 +112,7 @@ def compute_decision(
     else:
         cumulative = _build_cumulative_weights(variants_sorted)
         variant = _select_variant_by_weights(
-            subject_id, experiment, variants_sorted, cumulative
+            experiment, variants_sorted, cumulative, bucket
         )
 
     return DecisionResult(
