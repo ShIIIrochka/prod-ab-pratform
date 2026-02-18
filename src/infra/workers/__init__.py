@@ -1,5 +1,6 @@
 from __future__ import annotations
 
-from src.infra.workers.pending_events_ttl_listener import (
-    listen_for_expired_pending_events,
-)
+from src.infra.workers.pending_events_ttl_listener import PendingEventsTTLListener
+
+
+__all__ = ["PendingEventsTTLListener"]

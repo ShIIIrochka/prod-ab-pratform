@@ -16,7 +16,6 @@ router = APIRouter(tags=["Events"])
 
 
 def _to_response(result: EventsBatchResult) -> SendEventsResponse:
-    """Конвертировать domain value object в Pydantic HTTP-ответ."""
     return SendEventsResponse(
         accepted=result.accepted,
         duplicates=result.duplicates,

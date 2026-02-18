@@ -14,29 +14,6 @@ from src.application.ports.pending_events_store import (
 from src.domain.aggregates.event import AttributionStatus, Event
 
 
-# Префиксы ключей Redis
-# pending:event:{event_id}     — JSON данных события (без TTL)
-_PREFIX_EVENT = "pending:event:"
-# pending:ttl:{event_id}       — маркер TTL (пустое значение, TTL 7 дней).
-# Когда Redis удаляет этот ключ по истечении TTL, keyspace notification
-# сигнализирует листенеру: пора перенести событие в БД как REJECTED.
-PENDING_TTL_KEY_PREFIX = "pending:ttl:"
-# pending:decision:{decision_id} — Set из event_id (индекс по decision)
-_PREFIX_DECISION = "pending:decision:"
-
-
-def _event_key(event_id: str) -> str:
-    return f"{_PREFIX_EVENT}{event_id}"
-
-
-def _ttl_marker_key(event_id: str) -> str:
-    return f"{PENDING_TTL_KEY_PREFIX}{event_id}"
-
-
-def _decision_key(decision_id: str) -> str:
-    return f"{_PREFIX_DECISION}{decision_id}"
-
-
 def _serialize_event(event: Event) -> str:
     """Сериализовать доменное событие в JSON."""
     return json.dumps(
@@ -52,8 +29,15 @@ def _serialize_event(event: Event) -> str:
     )
 
 
-def _deserialize_event(data: str | bytes) -> Event:
-    """Десериализовать доменное событие из JSON."""
+def _deserialize_event(data: str) -> Event:
+    """Десериализовать доменное событие из JSON.
+
+    Args:
+        data: JSON-строка (decode_responses=True в Redis клиенте).
+
+    Returns:
+        Доменное событие.
+    """
     payload: dict[str, Any] = json.loads(data)
     return Event(
         id=UUID(payload["id"]),
@@ -67,49 +51,54 @@ def _deserialize_event(data: str | bytes) -> Event:
 
 
 class RedisPendingEventsStore(PendingEventsStorePort):
-    def __init__(self, redis: Redis) -> None:
+    _PREFIX_EVENT = "pending:event:"
+    PENDING_TTL_KEY_PREFIX = "pending:ttl:"
+    _PREFIX_DECISION = "pending:decision:"
+
+    def __init__(self, redis: Redis, ttl_seconds: int) -> None:
         self._redis = redis
+        self._ttl_seconds = ttl_seconds
 
     async def put(
         self,
         event: Event,
-        ttl_seconds: int = 7 * 24 * 3600,
+        ttl_seconds: int | None = None,
     ) -> None:
+        ttl_seconds = self._ttl_seconds if not ttl_seconds else ttl_seconds
         event_id = str(event.id)
         pipeline = self._redis.pipeline()
 
         # Данные события без TTL (читаем их при срабатывании expired notification)
-        pipeline.set(_event_key(event_id), _serialize_event(event))
+        pipeline.set(self._event_key(event_id), _serialize_event(event))
 
         # Маркер TTL — истекает через ttl_seconds, запускает keyspace notification
-        pipeline.set(_ttl_marker_key(event_id), "", ex=ttl_seconds)
+        pipeline.set(self._ttl_marker_key(event_id), "", ex=ttl_seconds)
 
         # Индекс decision_id → set[event_id]
-        pipeline.sadd(_decision_key(event.decision_id), event_id)
-        pipeline.expire(_decision_key(event.decision_id), ttl_seconds)
+        pipeline.sadd(self._decision_key(event.decision_id), event_id)
+        pipeline.expire(self._decision_key(event.decision_id), ttl_seconds)
 
         await pipeline.execute()
 
     async def exists(self, event_id: str) -> bool:
-        return bool(await self._redis.exists(_event_key(str(event_id))))
+        return bool(await self._redis.exists(self._event_key(event_id)))
 
     async def get_by_event_id(self, event_id: str) -> Event | None:
-        data = await self._redis.get(_event_key(str(event_id)))
+        data = await self._redis.get(self._event_key(event_id))
         if data is None:
             return None
         return _deserialize_event(data)
 
     async def get_by_decision_id(self, decision_id: str) -> list[Event]:
-        event_ids: set[bytes] = await self._redis.smembers(
-            _decision_key(decision_id)
+        event_ids: set[str] = await self._redis.smembers(
+            self._decision_key(decision_id)
         )
         if not event_ids:
             return []
 
         events: list[Event] = []
-        for raw_id in event_ids:
-            event_id = raw_id.decode() if isinstance(raw_id, bytes) else raw_id
-            data = await self._redis.get(_event_key(event_id))
+        for event_id in event_ids:
+            data = await self._redis.get(self._event_key(event_id))
             if data is not None:
                 events.append(_deserialize_event(data))
         return events
@@ -121,16 +110,25 @@ class RedisPendingEventsStore(PendingEventsStorePort):
         # Читаем decision_id каждого события, чтобы убрать из индекса
         events_to_remove: list[Event] = []
         for event_id in event_ids:
-            data = await self._redis.get(_event_key(str(event_id)))
+            data = await self._redis.get(self._event_key(str(event_id)))
             if data is not None:
                 events_to_remove.append(_deserialize_event(data))
 
         pipeline = self._redis.pipeline()
         for event_id in event_ids:
-            pipeline.delete(_event_key(str(event_id)))
-            pipeline.delete(_ttl_marker_key(str(event_id)))
+            pipeline.delete(self._event_key(str(event_id)))
+            pipeline.delete(self._ttl_marker_key(str(event_id)))
 
         for event in events_to_remove:
-            pipeline.srem(_decision_key(event.decision_id), str(event.id))
+            pipeline.srem(self._decision_key(event.decision_id), str(event.id))
 
         await pipeline.execute()
+
+    def _event_key(self, event_id: str) -> str:
+        return f"{self._PREFIX_EVENT}{event_id}"
+
+    def _ttl_marker_key(self, event_id: str) -> str:
+        return f"{self.PENDING_TTL_KEY_PREFIX}{event_id}"
+
+    def _decision_key(self, decision_id: str) -> str:
+        return f"{self._PREFIX_DECISION}{decision_id}"

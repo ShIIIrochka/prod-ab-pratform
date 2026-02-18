@@ -62,6 +62,9 @@ from src.infra.adapters.services.event_validator import PydanticEventValidator
 from src.infra.adapters.services.pending_events_store import (
     RedisPendingEventsStore,
 )
+from src.infra.workers.pending_events_ttl_listener import (
+    PendingEventsTTLListener,
+)
 
 
 def create_container() -> Container:
@@ -100,20 +103,19 @@ def create_container() -> Container:
     container.register(EventTypesRepositoryPort, EventTypesRepository)
     container.register(EventIdGeneratorPort, EventIdGenerator)
 
-    # Redis клиент — синглтон для всего приложения
-    redis_client = Redis.from_url(config.redis_url, decode_responses=False)
+    redis_client = Redis.from_url(config.redis_url, decode_responses=True)
     container.register(Redis, instance=redis_client)
 
-    # Валидатор событий (Pydantic, без проникновения в usecase)
     container.register(
         EventValidatorPort,
         instance=PydanticEventValidator(),
     )
 
-    # Pending-хранилище (Redis)
     container.register(
         PendingEventsStorePort,
-        instance=RedisPendingEventsStore(redis=redis_client),
+        instance=RedisPendingEventsStore(
+            redis=redis_client, ttl_seconds=config.pending_events_ttl_seconds
+        ),
     )
 
     container.register(CreateUserUseCase)
@@ -142,5 +144,14 @@ def create_container() -> Container:
     container.register(CreateEventTypeUseCase)
     container.register(GetEventTypeUseCase)
     container.register(ListEventTypesUseCase)
+
+    container.register(
+        PendingEventsTTLListener,
+        instance=PendingEventsTTLListener(
+            redis=redis_client,
+            pending_store=container.resolve(PendingEventsStorePort),
+            events_repository=container.resolve(EventsRepositoryPort),
+        ),
+    )
 
     return container
