@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
-from src.domain.aggregates.event import Event
+from src.domain.aggregates.event import AttributionStatus, Event
 
 
 class EventsRepositoryPort(ABC):
@@ -29,14 +30,31 @@ class EventsRepositoryPort(ABC):
     async def get_exposure_by_decision_id(
         self, decision_id: str
     ) -> list[Event]:
-        """Получить только exposure-события по decision_id.
+        """Получить только exposure-события по decision_id."""
+        raise NotImplementedError
 
-        Используется в отчётах и при расчёте атрибуции.
+    @abstractmethod
+    async def get_by_experiment(
+        self,
+        experiment_id: UUID,
+        from_time: datetime,
+        to_time: datetime,
+        attribution_status: AttributionStatus | None = None,
+    ) -> list[Event]:
+        """Получить все события по эксперименту в заданном временном окне.
 
-        Args:
-            decision_id: ID решения
-
-        Returns:
-            Список exposure-событий
+        Выполняет JOIN events → decisions → experiment_id.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_experiment_and_variant(
+        self,
+        experiment_id: UUID,
+        variant_name: str,
+        from_time: datetime,
+        to_time: datetime,
+        attribution_status: AttributionStatus | None = None,
+    ) -> list[Event]:
+        """Получить события по эксперименту и варианту в заданном временном окне."""
         raise NotImplementedError

@@ -26,6 +26,8 @@ from src.presentation.rest.routes import (
     events,
     experiments,
     feature_flags,
+    metrics,
+    reports,
 )
 
 
@@ -86,5 +88,7 @@ def create_app() -> FastAPI:
     app.include_router(experiments.router)
     app.include_router(events.router)
     app.include_router(event_types.router)
+    app.include_router(metrics.router)
+    app.include_router(reports.router)
 
     return app

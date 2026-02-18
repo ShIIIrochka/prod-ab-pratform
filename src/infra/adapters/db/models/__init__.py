@@ -8,3 +8,4 @@ from src.infra.adapters.db.models.user import UserModel
 from src.infra.adapters.db.models.variant import VariantModel
 from src.infra.adapters.db.models.event import EventModel
 from src.infra.adapters.db.models.event_type import EventTypeModel
+from src.infra.adapters.db.models.metric import MetricModel

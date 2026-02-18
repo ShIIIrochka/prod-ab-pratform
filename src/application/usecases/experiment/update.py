@@ -59,6 +59,12 @@ class UpdateExperimentUseCase:
                 rule_expression=data.targeting_rule
             )
 
+        if data.target_metric_key is not None:
+            experiment.target_metric_key = data.target_metric_key
+
+        if data.metric_keys is not None:
+            experiment.metric_keys = data.metric_keys
+
         try:
             async with self._uow:
                 await self._experiments_repository.save(experiment)

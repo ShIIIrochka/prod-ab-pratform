@@ -28,9 +28,8 @@ class Experiment(BaseEntity):
     variants: list[Variant]
     targeting_rule: TargetingRule | None
     owner_id: str
-    # target_metric_key: str | None = None
-    # metric_keys: list[str] = field(default_factory=list)
-    # guardrail_configs: list[GuardrailConfig] = field(default_factory=list)
+    target_metric_key: str | None = None
+    metric_keys: list[str] = field(default_factory=list)
     approvals: list[Approval] = field(default_factory=list)
     completion: ExperimentCompletion | None = None
     rollback_to_control_active: bool = False

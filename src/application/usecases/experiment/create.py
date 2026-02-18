@@ -82,6 +82,8 @@ class CreateExperimentUseCase:
             owner_id=owner_id,
             approvals=[],
             completion=None,
+            target_metric_key=data.target_metric_key,
+            metric_keys=data.metric_keys,
         )
         try:
             async with self._uow:

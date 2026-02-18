@@ -24,6 +24,13 @@ class ExperimentCreateRequest(BaseModel):
     targeting_rule: str | None = Field(
         None, description="Optional targeting rule expression"
     )
+    target_metric_key: str | None = Field(
+        None, description="Primary metric key for the experiment"
+    )
+    metric_keys: list[str] = Field(
+        default_factory=list,
+        description="Additional metric keys to track",
+    )
 
 
 class ExperimentUpdateRequest(BaseModel):
@@ -36,6 +43,12 @@ class ExperimentUpdateRequest(BaseModel):
     )
     targeting_rule: str | None = Field(
         None, description="Optional targeting rule expression"
+    )
+    target_metric_key: str | None = Field(
+        None, description="Primary metric key"
+    )
+    metric_keys: list[str] | None = Field(
+        None, description="Additional metric keys to track"
     )
 
 
@@ -64,6 +77,12 @@ class ExperimentResponse(BaseModel):
         None, description="Optional targeting rule expression"
     )
     owner_id: str = Field(..., description="Owner user ID")
+    target_metric_key: str | None = Field(
+        None, description="Primary metric key"
+    )
+    metric_keys: list[str] = Field(
+        default_factory=list, description="Additional metric keys"
+    )
 
     class Config:
         from_attributes = True

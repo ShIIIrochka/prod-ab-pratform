@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from src.application.ports.events_repository import EventsRepositoryPort
-from src.domain.aggregates.event import Event
+from src.domain.aggregates.event import AttributionStatus, Event
 from src.infra.adapters.db.models.event import EventModel
 
 
@@ -37,9 +38,44 @@ class EventsRepository(EventsRepositoryPort):
     async def get_exposure_by_decision_id(
         self, decision_id: str
     ) -> list[Event]:
-        """Получить только exposure-события по decision_id."""
         models = await EventModel.filter(
             decision_id=decision_id,
             event_type_key="exposure",
         ).all()
         return [model.to_domain() for model in models]
+
+    async def get_by_experiment(
+        self,
+        experiment_id: UUID,
+        from_time: datetime,
+        to_time: datetime,
+        attribution_status: AttributionStatus | None = None,
+    ) -> list[Event]:
+        query = EventModel.filter(
+            decision__experiment_id=str(experiment_id),
+            timestamp__gte=from_time,
+            timestamp__lt=to_time,
+        )
+        if attribution_status is not None:
+            query = query.filter(attribution_status=attribution_status.value)
+        models = await query.all()
+        return [m.to_domain() for m in models]
+
+    async def get_by_experiment_and_variant(
+        self,
+        experiment_id: UUID,
+        variant_name: str,
+        from_time: datetime,
+        to_time: datetime,
+        attribution_status: AttributionStatus | None = None,
+    ) -> list[Event]:
+        query = EventModel.filter(
+            decision__experiment_id=str(experiment_id),
+            decision__variant__name=variant_name,
+            timestamp__gte=from_time,
+            timestamp__lt=to_time,
+        )
+        if attribution_status is not None:
+            query = query.filter(attribution_status=attribution_status.value)
+        models = await query.all()
+        return [m.to_domain() for m in models]

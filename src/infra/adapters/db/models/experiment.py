@@ -34,6 +34,8 @@ class ExperimentModel(Model):
     )
     completion = fields.JSONField(null=True)
     rollback_to_control_active = fields.BooleanField(default=False)
+    target_metric_key = fields.CharField(max_length=255, null=True)
+    metric_keys = fields.JSONField(default=list)
     variants: ReverseRelation["models.VariantModel"]  # type: ignore # noqa
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
@@ -79,6 +81,8 @@ class ExperimentModel(Model):
             approvals=approvals,
             completion=completion,
             rollback_to_control_active=self.rollback_to_control_active,
+            target_metric_key=self.target_metric_key,
+            metric_keys=self.metric_keys or [],
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
@@ -108,6 +112,8 @@ class ExperimentModel(Model):
             owner_id=experiment.owner_id,
             completion=completion_json,
             rollback_to_control_active=experiment.rollback_to_control_active,
+            target_metric_key=experiment.target_metric_key,
+            metric_keys=experiment.metric_keys,
             created_at=experiment.created_at,
             updated_at=experiment.updated_at,
         )

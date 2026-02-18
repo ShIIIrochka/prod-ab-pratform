@@ -3,6 +3,8 @@ from __future__ import annotations
 from tortoise import fields
 from tortoise.models import Model
 
+from src.domain.aggregates.metric import Metric
+
 
 class MetricModel(Model):
     """Tortoise модель для каталога метрик.
@@ -17,7 +19,6 @@ class MetricModel(Model):
         max_length=500, description="Human-readable metric name"
     )
 
-    # Правило вычисления метрики (DSL или JSON с правилами агрегации)
     calculation_rule = fields.TextField(description="Metric calculation rule")
 
     requires_exposure = fields.BooleanField(
@@ -28,3 +29,22 @@ class MetricModel(Model):
 
     class Meta:
         table = "metrics"
+
+    def to_domain(self) -> Metric:
+        return Metric(
+            key=self.key,
+            name=self.name,
+            calculation_rule=self.calculation_rule,
+            requires_exposure=self.requires_exposure,
+            description=self.description,
+        )
+
+    @classmethod
+    def from_domain(cls, metric: Metric) -> MetricModel:
+        return cls(
+            key=metric.key,
+            name=metric.name,
+            calculation_rule=metric.calculation_rule,
+            requires_exposure=metric.requires_exposure,
+            description=metric.description,
+        )

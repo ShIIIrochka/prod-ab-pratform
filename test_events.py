@@ -39,10 +39,10 @@ def send_valid_event(decision_id):
     payload = {
         "events": [
             {
-                "event_type_key": "button_clicke",
+                "event_type_key": "exposure",
                 "decision_id": decision_id,
                 "timestamp": "2026-02-17T12:00:00Z",
-                "props": {"screen": "checkout"},
+                "props": {"screen": "test1"},
                 "subject_id": "41837b56-147b-47bb-b217-5f15a0f3d7ae",
             }
         ]
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     # create_event_type()
 
     # 2️⃣ decision_id — подставь реальный из Decide API
-    decision_id = "5a231b87-ce59-4139-ae05-1c6bc9232243"
+    decision_id = "42362c08-2bcc-4a3b-9aab-77fc62d811a6"
 
     # 3️⃣ валидное событие
     event_id = send_valid_event(decision_id)

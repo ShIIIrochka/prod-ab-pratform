@@ -16,6 +16,7 @@ from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
 from src.application.ports.jwt import JWTPort
+from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.password_hasher import PasswordHasherPort
 from src.application.ports.pending_events_store import PendingEventsStorePort
 from src.application.ports.uow import UnitOfWorkPort
@@ -45,6 +46,12 @@ from src.application.usecases.event_type.create import CreateEventTypeUseCase
 from src.application.usecases.event_type.get import GetEventTypeUseCase
 from src.application.usecases.event_type.list import ListEventTypesUseCase
 from src.application.usecases.events.send import SendEventsUseCase
+from src.application.usecases.metrics.create import CreateMetricUseCase
+from src.application.usecases.metrics.get import GetMetricUseCase
+from src.application.usecases.metrics.list import ListMetricsUseCase
+from src.application.usecases.reports.get_experiment_report import (
+    GetExperimentReportUseCase,
+)
 from src.infra.adapters.config import Config
 from src.infra.adapters.db.uow import UnitOfWork
 from src.infra.adapters.jwt import JWTAdapter
@@ -55,6 +62,7 @@ from src.infra.adapters.repositories import (
     EventsRepository,
     ExperimentsRepository,
     FeatureFlagsRepository,
+    MetricsRepository,
     UserRepository,
 )
 from src.infra.adapters.services.event_id_generator import EventIdGenerator
@@ -102,6 +110,7 @@ def create_container() -> Container:
     container.register(EventsRepositoryPort, EventsRepository)
     container.register(EventTypesRepositoryPort, EventTypesRepository)
     container.register(EventIdGeneratorPort, EventIdGenerator)
+    container.register(MetricsRepositoryPort, MetricsRepository)
 
     redis_client = Redis.from_url(config.redis_url, decode_responses=True)
     container.register(Redis, instance=redis_client)
@@ -160,6 +169,10 @@ def create_container() -> Container:
     container.register(CreateEventTypeUseCase)
     container.register(GetEventTypeUseCase)
     container.register(ListEventTypesUseCase)
+    container.register(CreateMetricUseCase)
+    container.register(GetMetricUseCase)
+    container.register(ListMetricsUseCase)
+    container.register(GetExperimentReportUseCase)
 
     container.register(
         PendingEventsTTLListener,
