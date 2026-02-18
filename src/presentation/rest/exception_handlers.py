@@ -11,6 +11,7 @@ from src.domain.exceptions import (
     UserNotFoundError,
     VariantNameAlreadyExistsError,
 )
+from src.domain.exceptions.events import EventTypeNotFoundError
 from src.domain.exceptions.experiment import CannotReviewExperimentError
 
 
@@ -85,4 +86,13 @@ def setup_exc_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"message": exc.message},
+        )
+
+    @app.exception_handler(EventTypeNotFoundError)
+    async def event_type_not_found_exception_handler(
+        request: Request, exc: EventTypeNotFoundError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"message": str(exc)},
         )

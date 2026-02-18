@@ -21,9 +21,6 @@ from src.application.usecases.experiment.reject import (
 from src.application.usecases.experiment.request_changes import (
     RequestChangesUseCase,
 )
-from src.application.usecases.experiment.resume import (
-    ResumeExperimentUseCase,
-)
 from src.application.usecases.experiment.send_to_review import (
     SendExperimentToReviewUseCase,
 )
@@ -38,5 +35,9 @@ from src.application.usecases.feature_flag.list import ListFeatureFlagsUseCase
 from src.application.usecases.feature_flag.update import (
     UpdateFeatureFlagDefaultValueUseCase,
 )
+from src.application.usecases.event_type.create import CreateEventTypeUseCase
+from src.application.usecases.event_type.get import GetEventTypeUseCase
+from src.application.usecases.event_type.list import ListEventTypesUseCase
+from src.application.usecases.events.send import SendEventsUseCase
 from src.application.usecases.user.create import CreateUserUseCase
 from src.application.usecases.user.get_by_id import GetUserByIdUseCase

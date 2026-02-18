@@ -1,21 +1,31 @@
 from __future__ import annotations
 
+import asyncio
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 
+from src.application.ports.events_repository import EventsRepositoryPort
 from src.application.ports.jwt import JWTPort
+from src.application.ports.pending_events_store import PendingEventsStorePort
 from src.infra.adapters.config import Config
 from src.infra.adapters.db.db import Database
+from src.infra.workers.pending_events_ttl_listener import (
+    listen_for_expired_pending_events,
+)
 from src.presentation.rest.dependencies import container
 from src.presentation.rest.exception_handlers import setup_exc_handlers
 from src.presentation.rest.middlewares import JWTBackend
 from src.presentation.rest.routes import (
     auth,
     decide,
+    event_types,
+    events,
     experiments,
     feature_flags,
 )
@@ -30,9 +40,28 @@ async def lifespan(_: FastAPI):
     )
     await db.connect()
 
+    # Запускаем слушатель keyspace notifications:
+    # при истечении TTL pending:ttl:{event_id} переносит событие в БД как REJECTED
+    ttl_task = asyncio.create_task(
+        listen_for_expired_pending_events(
+            redis=container.resolve(Redis),
+            pending_store=container.resolve(PendingEventsStorePort),
+            events_repository=container.resolve(EventsRepositoryPort),
+        )
+    )
+
     yield
 
+    ttl_task.cancel()
+    try:
+        await ttl_task
+    except asyncio.CancelledError:
+        pass
     await db.disconnect()
+
+    # Закрываем Redis-соединение
+    redis: Redis = container.resolve(Redis)
+    await redis.aclose()
 
 
 def create_app() -> FastAPI:
@@ -63,5 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(decide.router)
     app.include_router(feature_flags.router)
     app.include_router(experiments.router)
+    app.include_router(events.router)
+    app.include_router(event_types.router)
 
     return app

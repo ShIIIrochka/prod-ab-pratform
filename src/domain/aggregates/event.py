@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
+from uuid import UUID
 
 
 class AttributionStatus(StrEnum):
@@ -14,7 +15,7 @@ class AttributionStatus(StrEnum):
 
 @dataclass
 class Event:
-    id: str
+    id: UUID
     event_type_key: str
     decision_id: str
     subject_id: str

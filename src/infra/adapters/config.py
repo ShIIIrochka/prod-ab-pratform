@@ -13,6 +13,7 @@ class Config:
     jwt_alg: str
     jwt_access_expires: int
     jwt_refresh_expires: int
+    redis_url: str
 
     @classmethod
     def get_config(cls) -> Config:
@@ -29,6 +30,7 @@ class Config:
                 jwt_alg=os.environ["JWT_ALG"],
                 jwt_access_expires=int(os.environ["JWT_ACCESS_EXPIRES"]),
                 jwt_refresh_expires=int(os.environ["JWT_REFRESH_EXPIRES"]),
+                redis_url=os.environ["REDIS_URI"],
             )
         except KeyError:
             raise RuntimeError("Required variables are not set")

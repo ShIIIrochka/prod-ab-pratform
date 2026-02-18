@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class SendEventRequest(BaseModel):
+    event_type_key: str = Field(..., min_length=1, description="Event type key")
+    decision_id: str = Field(
+        ..., min_length=1, description="Decision ID for attribution"
+    )
+    subject_id: str = Field(..., min_length=1, description="Subject identifier")
+    timestamp: datetime = Field(..., description="Event timestamp")
+    props: dict[str, Any] = Field(
+        default_factory=dict, description="Event properties"
+    )
+
+
+class SendEventsRequest(BaseModel):
+    events: list[SendEventRequest] = Field(
+        ..., min_length=1, max_length=500, description="List of events to send"
+    )
+
+
+class EventErrorDetail(BaseModel):
+    """Детали ошибки обработки события."""
+
+    index: int = Field(..., description="Index of the event in the request")
+    event_type_key: str = Field(..., description="Event type key")
+    reason: str = Field(..., description="Error reason")
+
+
+class SendEventsResponse(BaseModel):
+    """Результат обработки событий."""
+
+    accepted: int = Field(..., description="Number of accepted events")
+    duplicates: int = Field(..., description="Number of duplicate events")
+    rejected: int = Field(..., description="Number of rejected events")
+    errors: list[EventErrorDetail] = Field(
+        default_factory=list, description="Details of rejected events"
+    )

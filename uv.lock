@@ -108,6 +108,7 @@ dependencies = [
     { name = "jamlib" },
     { name = "punq" },
     { name = "pydantic", extra = ["email"] },
+    { name = "redis" },
     { name = "requests" },
     { name = "tortoise-orm", extra = ["asyncpg"] },
     { name = "uvloop" },
@@ -127,6 +128,7 @@ requires-dist = [
     { name = "jamlib", specifier = ">=2.5.5" },
     { name = "punq", specifier = ">=0.7.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.0" },
+    { name = "redis", extras = ["asyncio"], specifier = ">=5.0.0" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "tortoise-orm", extras = ["asyncpg"], specifier = ">=0.25.3" },
     { name = "uvloop", specifier = ">=0.22.1" },
@@ -551,6 +553,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3", size = 320884, upload-time = "2025-03-25T02:25:00.538Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00", size = 509225, upload-time = "2025-03-25T02:24:58.468Z" },
+]
+
+[[package]]
+name = "redis"
+version = "7.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/32/6fac13a11e73e1bc67a2ae821a72bfe4c2d8c4c48f0267e4a952be0f1bae/redis-7.2.0.tar.gz", hash = "sha256:4dd5bf4bd4ae80510267f14185a15cba2a38666b941aff68cccf0256b51c1f26", size = 4901247, upload-time = "2026-02-16T17:16:22.797Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/86/cf/f6180b67f99688d83e15c84c5beda831d1d341e95872d224f87ccafafe61/redis-7.2.0-py3-none-any.whl", hash = "sha256:01f591f8598e483f1842d429e8ae3a820804566f1c73dca1b80e23af9fba0497", size = 394898, upload-time = "2026-02-16T17:16:20.693Z" },
 ]
 
 [[package]]
