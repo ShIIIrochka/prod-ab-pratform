@@ -23,8 +23,8 @@ class FeatureFlag:
                 f"Expected str for STRING type, got {value.__class__.__name__}"
             )
             raise ValueError(msg)
-        if self.value_type == FlagValueType.NUMBER and not isinstance(
-            value, int | float
+        if self.value_type == FlagValueType.NUMBER and (
+            not isinstance(value, int | float) or type(value) is bool
         ):
             msg = f"Expected int/float for NUMBER type, got {value.__class__.__name__}"
             raise ValueError(msg)
