@@ -20,3 +20,10 @@ class GuardrailConfigsRepositoryPort(ABC):
     ) -> None:
         """Заменить все guardrail-правила эксперимента (удалить старые, сохранить новые)."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def get_for_running_experiments(
+        self,
+    ) -> dict[UUID, list[GuardrailConfig]]:
+        """Один запрос: все конфиги для экспериментов со статусом RUNNING."""
+        raise NotImplementedError

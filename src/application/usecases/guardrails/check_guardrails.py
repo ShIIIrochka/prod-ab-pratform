@@ -1,10 +1,10 @@
 """
 Алгоритм:
-  Для каждого RUNNING эксперимента:
+  Один запрос: все RUNNING-эксперименты + guardrail-конфиги (get_for_running_experiments).
+  Для каждого эксперимента:
     Для каждого guardrail-правила:
-      1. Получить все события за последние observation_window_minutes минут
-      2. Вычислить значение метрики
-      3. Если значение > порога → сработал guardrail:
+      1. Прочитать агрегаты из Redis (MetricAggregator.get_value) — без SQL-запроса.
+      2. Если значение > порога → сработал guardrail:
          - Выполнить action (PAUSE или ROLLBACK_TO_CONTROL)
          - Записать GuardrailTrigger в историю
 """
@@ -13,9 +13,8 @@ from __future__ import annotations
 
 import logging
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
-from src.application.ports.events_repository import EventsRepositoryPort
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
@@ -25,11 +24,9 @@ from src.application.ports.guardrail_configs_repository import (
 from src.application.ports.guardrail_triggers_repository import (
     GuardrailTriggersRepositoryPort,
 )
+from src.application.ports.metric_aggregator import MetricAggregatorPort
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
-from src.domain.aggregates.event import AttributionStatus
-from src.domain.services.metric_calculator import calculate_metric
-from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.domain.value_objects.guardrail_config import GuardrailAction
 from src.domain.value_objects.guardrail_trigger import GuardrailTrigger
 
@@ -41,52 +38,37 @@ class CheckGuardrailsUseCase:
     def __init__(
         self,
         experiments_repository: ExperimentsRepositoryPort,
-        events_repository: EventsRepositoryPort,
         guardrail_configs_repository: GuardrailConfigsRepositoryPort,
         guardrail_triggers_repository: GuardrailTriggersRepositoryPort,
         metrics_repository: MetricsRepositoryPort,
+        metric_aggregator: MetricAggregatorPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._experiments_repository = experiments_repository
-        self._events_repository = events_repository
         self._guardrail_configs_repository = guardrail_configs_repository
         self._guardrail_triggers_repository = guardrail_triggers_repository
         self._metrics_repository = metrics_repository
+        self._metric_aggregator = metric_aggregator
         self._uow = uow
 
     async def execute(self) -> None:
-        running_experiments = await self._experiments_repository.list_all(
-            status=ExperimentStatus.RUNNING
-        )
+        configs_by_experiment = await self._guardrail_configs_repository.get_for_running_experiments()
+        if not configs_by_experiment:
+            return
 
-        for experiment in running_experiments:
-            configs = (
-                await self._guardrail_configs_repository.get_by_experiment_id(
-                    experiment.id
-                )
+        for experiment_id, configs in configs_by_experiment.items():
+            experiment = await self._experiments_repository.get_by_id(
+                experiment_id
             )
-            if not configs:
+            if experiment is None:
                 continue
 
             for config in configs:
-                # Если rollback уже активен для этого guardrail action — пропускаем повторный trigger
                 if (
                     config.action == GuardrailAction.ROLLBACK_TO_CONTROL
                     and experiment.rollback_to_control_active
                 ):
                     continue
-
-                now = datetime.now(UTC)
-                window_start = now - timedelta(
-                    minutes=config.observation_window_minutes
-                )
-
-                events = await self._events_repository.get_by_experiment(
-                    experiment_id=experiment.id,
-                    from_time=window_start,
-                    to_time=now,
-                    attribution_status=AttributionStatus.ATTRIBUTED,
-                )
 
                 metric = await self._metrics_repository.get_by_key(
                     config.metric_key
@@ -95,18 +77,22 @@ class CheckGuardrailsUseCase:
                     logger.warning(
                         "Guardrail metric '%s' not found for experiment %s, skipping",
                         config.metric_key,
-                        experiment.id,
+                        experiment_id,
                     )
                     continue
 
-                actual_value = calculate_metric(metric, events)
+                actual_value = await self._metric_aggregator.get_value(
+                    experiment_id=experiment_id,
+                    metric=metric,
+                    window_minutes=config.observation_window_minutes,
+                )
 
                 if actual_value <= config.threshold:
                     continue
 
-                # Guardrail сработал
+                now = datetime.now(UTC)
                 trigger = GuardrailTrigger(
-                    experiment_id=str(experiment.id),
+                    experiment_id=str(experiment_id),
                     metric_key=config.metric_key,
                     threshold=config.threshold,
                     observation_window_minutes=config.observation_window_minutes,
@@ -117,7 +103,7 @@ class CheckGuardrailsUseCase:
 
                 logger.warning(
                     "Guardrail triggered for experiment %s: metric=%s actual=%.4f threshold=%.4f action=%s",
-                    experiment.id,
+                    experiment_id,
                     config.metric_key,
                     actual_value,
                     config.threshold,
@@ -125,10 +111,8 @@ class CheckGuardrailsUseCase:
                 )
 
                 async with self._uow:
-                    # Записываем в аудит (B5-5)
                     await self._guardrail_triggers_repository.save(trigger)
 
-                    # Выполняем action (B5-4)
                     if config.action == GuardrailAction.PAUSE:
                         experiment.pause()
                     elif config.action == GuardrailAction.ROLLBACK_TO_CONTROL:
@@ -136,6 +120,5 @@ class CheckGuardrailsUseCase:
 
                     await self._experiments_repository.save(experiment)
 
-                # После паузы дальше guardrails этого эксперимента не проверяем
                 if config.action == GuardrailAction.PAUSE:
                     break

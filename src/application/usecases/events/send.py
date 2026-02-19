@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from src.application.dto.events import SendEventsRequest
 from src.application.ports.decisions_repository import DecisionsRepositoryPort
 from src.application.ports.event_id_generator import EventIdGeneratorPort
@@ -8,19 +10,30 @@ from src.application.ports.event_types_repository import (
 )
 from src.application.ports.event_validator import EventValidatorPort
 from src.application.ports.events_repository import EventsRepositoryPort
+from src.application.ports.guardrail_configs_repository import (
+    GuardrailConfigsRepositoryPort,
+)
+from src.application.ports.metric_aggregator import MetricAggregatorPort
+from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.pending_events_store import (
     PendingEventsStorePort,
 )
 from src.application.ports.uow import UnitOfWorkPort
+from src.domain.aggregates.decision import Decision
 from src.domain.aggregates.event import AttributionStatus, Event
+from src.domain.aggregates.metric import Metric
 from src.domain.value_objects.event_processing import (
     EventProcessingError,
     EventsBatchResult,
 )
 
 
-# Ключ типа события «экспозиция» — факт показа варианта пользователю
+logger = logging.getLogger(__name__)
+
 EXPOSURE_EVENT_TYPE_KEY = "exposure"
+
+# TTL для Redis-агрегатов: максимальное окно наблюдения (1 час запаса)
+_METRIC_AGGREGATOR_TTL_SECONDS = 3600
 
 
 class SendEventsUseCase:
@@ -32,6 +45,9 @@ class SendEventsUseCase:
         event_id_generator: EventIdGeneratorPort,
         event_validator: EventValidatorPort,
         pending_events_store: PendingEventsStorePort,
+        guardrail_configs_repository: GuardrailConfigsRepositoryPort,
+        metrics_repository: MetricsRepositoryPort,
+        metric_aggregator: MetricAggregatorPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._events_repository = events_repository
@@ -40,6 +56,9 @@ class SendEventsUseCase:
         self._event_id_generator = event_id_generator
         self._event_validator = event_validator
         self._pending_store = pending_events_store
+        self._guardrail_configs_repository = guardrail_configs_repository
+        self._metrics_repository = metrics_repository
+        self._metric_aggregator = metric_aggregator
         self._uow = uow
 
     async def execute(self, data: SendEventsRequest) -> EventsBatchResult:
@@ -51,7 +70,6 @@ class SendEventsUseCase:
         for idx, event_data in enumerate(data.events):
             result = await self._process_single_event(idx, event_data)
             if result is None:
-                # Дубликат
                 duplicates += 1
             elif isinstance(result, EventProcessingError):
                 rejected += 1
@@ -87,8 +105,7 @@ class SendEventsUseCase:
                 reason=f"Event type not found: {event_data.event_type_key}",
             )
 
-        # 2. Валидация обязательных параметров через EventValidatorPort
-        #    (B4-1, B4-2: типы и обязательные поля)
+        # 2. Валидация обязательных параметров (B4-1, B4-2)
         validation = self._event_validator.validate(
             required_params=event_type.required_params,
             props=event_data.props,
@@ -123,19 +140,16 @@ class SendEventsUseCase:
             props=event_data.props,
         )
 
-        # 5. Дедупликация: проверяем в БД и в pending-хранилище (B4-3)
+        # 5. Дедупликация (B4-3)
         if await self._events_repository.exists(event_id):
             return None
         if await self._pending_store.exists(str(event_id)):
             return None
 
-        # Используем нормализованные props из валидатора
         normalized_props = validation.normalized_props or event_data.props
-
         is_exposure = event_data.event_type_key == EXPOSURE_EVENT_TYPE_KEY
 
         if is_exposure:
-            # Exposure сохраняется в БД сразу со статусом ATTRIBUTED
             event = Event(
                 id=event_id,
                 event_type_key=event_data.event_type_key,
@@ -147,14 +161,12 @@ class SendEventsUseCase:
             )
             async with self._uow:
                 await self._events_repository.save(event)
-                # Переносим все pending-события этого decision_id → ATTRIBUTED
                 await self._attribute_pending_events(event_data.decision_id)
+
+            await self._update_metric_aggregates(event, decision)
             return event
 
         if event_type.requires_exposure:
-            # Exposure мог прийти раньше этого события (out-of-order delivery).
-            # Проверяем БД: если exposure уже есть — атрибутируем сразу,
-            # иначе кладём в Redis и ждём его прихода (или TTL → REJECTED).
             exposure_events = (
                 await self._events_repository.get_exposure_by_decision_id(
                     event_data.decision_id
@@ -172,6 +184,7 @@ class SendEventsUseCase:
                 )
                 async with self._uow:
                     await self._events_repository.save(event)
+                await self._update_metric_aggregates(event, decision)
             else:
                 event = Event(
                     id=event_id,
@@ -197,6 +210,7 @@ class SendEventsUseCase:
         )
         async with self._uow:
             await self._events_repository.save(event)
+        await self._update_metric_aggregates(event, decision)
         return event
 
     async def _attribute_pending_events(self, decision_id: str) -> None:
@@ -213,3 +227,56 @@ class SendEventsUseCase:
         await self._pending_store.delete_by_event_ids(
             [str(e.id) for e in pending_events]
         )
+
+    async def _update_metric_aggregates(
+        self, event: Event, decision: Decision
+    ) -> None:
+        """Обновить Redis-агрегаты при сохранении ATTRIBUTED-события.
+
+        Вызывается только для экспериментальных решений (где есть experiment_id).
+        Загружает guardrail-метрики эксперимента и передаёт событие агрегатору.
+        """
+        if not decision.experiment_id:
+            return
+
+        try:
+            configs = (
+                await self._guardrail_configs_repository.get_by_experiment_id(
+                    decision.experiment_id
+                )
+            )
+            if not configs:
+                return
+
+            # Загружаем уникальные метрики guardrails
+            metrics: list[Metric] = []
+            seen_keys: set[str] = set()
+            for config in configs:
+                if config.metric_key not in seen_keys:
+                    metric = await self._metrics_repository.get_by_key(
+                        config.metric_key
+                    )
+                    if metric:
+                        metrics.append(metric)
+                        seen_keys.add(config.metric_key)
+
+            if not metrics:
+                return
+
+            max_window = max(c.observation_window_minutes for c in configs)
+            # TTL = max observation window * 60 + 2-minute buffer
+            ttl = max_window * 60 + 120
+
+            await self._metric_aggregator.update(
+                experiment_id=decision.experiment_id,
+                event=event,
+                metrics=metrics,
+                max_ttl_seconds=ttl,
+            )
+        except Exception as exc:
+            # Не блокируем основной поток при ошибке агрегации
+            logger.warning(
+                "Failed to update metric aggregates for experiment %s: %s",
+                decision.experiment_id,
+                exc,
+            )

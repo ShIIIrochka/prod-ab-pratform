@@ -59,8 +59,8 @@ async def _build_experiment_response(
     """Строит ExperimentResponse, дополняя его guardrails из БД."""
     guardrail_repo = container.resolve(GuardrailConfigsRepositoryPort)
     guardrails = await guardrail_repo.get_by_experiment_id(experiment.id)
-    response = ExperimentResponse.model_validate(experiment)
-    response.guardrails = [
+
+    guardrail_responses = [
         GuardrailConfigResponse(
             metric_key=g.metric_key,
             threshold=g.threshold,
@@ -69,6 +69,9 @@ async def _build_experiment_response(
         )
         for g in guardrails
     ]
+
+    response = ExperimentResponse.model_validate(experiment)
+    response.guardrails = guardrail_responses
     return response
 
 

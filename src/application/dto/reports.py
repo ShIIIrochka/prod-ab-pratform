@@ -29,12 +29,15 @@ class MetricDynamics(BaseModel):
 
 class VariantReportResponse(BaseModel):
     variant_name: str = Field(..., description="Variant name")
+    is_control: bool = Field(
+        False, description="Whether this is the control variant"
+    )
     metrics: list[MetricValueResponse] = Field(
         default_factory=list, description="Metric values for this variant"
     )
     dynamics: list[MetricDynamics] = Field(
         default_factory=list,
-        description="Daily dynamics for each metric in this variant",
+        description="Daily dynamics for each metric in this variant (only days with data)",
     )
 
 

@@ -22,6 +22,7 @@ from src.application.ports.guardrail_triggers_repository import (
     GuardrailTriggersRepositoryPort,
 )
 from src.application.ports.jwt import JWTPort
+from src.application.ports.metric_aggregator import MetricAggregatorPort
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.password_hasher import PasswordHasherPort
 from src.application.ports.pending_events_store import PendingEventsStorePort
@@ -80,6 +81,9 @@ from src.infra.adapters.services.event_id_generator import EventIdGenerator
 from src.infra.adapters.services.event_validator import PydanticEventValidator
 from src.infra.adapters.services.pending_events_store import (
     RedisPendingEventsStore,
+)
+from src.infra.adapters.services.redis_metric_aggregator import (
+    RedisMetricAggregator,
 )
 from src.infra.workers.guardrail_checker_worker import GuardrailCheckerWorker
 from src.infra.workers.pending_events_ttl_listener import (
@@ -145,6 +149,11 @@ def create_container() -> Container:
         ),
     )
 
+    container.register(
+        MetricAggregatorPort,
+        instance=RedisMetricAggregator(redis=redis_client),
+    )
+
     container.register(CreateUserUseCase)
     container.register(LoginUseCase)
     container.register(GetUserByIdUseCase)
@@ -183,7 +192,23 @@ def create_container() -> Container:
     container.register(PauseExperimentUseCase)
     container.register(CompleteExperimentUseCase)
 
-    container.register(SendEventsUseCase)
+    container.register(
+        SendEventsUseCase,
+        factory=lambda: SendEventsUseCase(
+            events_repository=container.resolve(EventsRepositoryPort),
+            event_types_repository=container.resolve(EventTypesRepositoryPort),
+            decisions_repository=container.resolve(DecisionsRepositoryPort),
+            event_id_generator=container.resolve(EventIdGeneratorPort),
+            event_validator=container.resolve(EventValidatorPort),
+            pending_events_store=container.resolve(PendingEventsStorePort),
+            guardrail_configs_repository=container.resolve(
+                GuardrailConfigsRepositoryPort
+            ),
+            metrics_repository=container.resolve(MetricsRepositoryPort),
+            metric_aggregator=container.resolve(MetricAggregatorPort),
+            uow=container.resolve(UnitOfWorkPort),
+        ),
+    )
     container.register(CreateEventTypeUseCase)
     container.register(GetEventTypeUseCase)
     container.register(ListEventTypesUseCase)
@@ -191,7 +216,21 @@ def create_container() -> Container:
     container.register(GetMetricUseCase)
     container.register(ListMetricsUseCase)
     container.register(GetExperimentReportUseCase)
-    container.register(CheckGuardrailsUseCase)
+    container.register(
+        CheckGuardrailsUseCase,
+        factory=lambda: CheckGuardrailsUseCase(
+            experiments_repository=container.resolve(ExperimentsRepositoryPort),
+            guardrail_configs_repository=container.resolve(
+                GuardrailConfigsRepositoryPort
+            ),
+            guardrail_triggers_repository=container.resolve(
+                GuardrailTriggersRepositoryPort
+            ),
+            metrics_repository=container.resolve(MetricsRepositoryPort),
+            metric_aggregator=container.resolve(MetricAggregatorPort),
+            uow=container.resolve(UnitOfWorkPort),
+        ),
+    )
 
     container.register(
         PendingEventsTTLListener,

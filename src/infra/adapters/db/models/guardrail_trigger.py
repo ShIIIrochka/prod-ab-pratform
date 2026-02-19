@@ -8,14 +8,12 @@ from src.domain.value_objects.guardrail_trigger import GuardrailTrigger
 
 
 class GuardrailTriggerModel(Model):
-    """Запись о срабатывании guardrail (аудит)."""
-
     id = fields.IntField(pk=True)
     experiment_id = fields.CharField(
         max_length=36, index=True, description="Experiment UUID"
     )
     metric_key = fields.CharField(
-        max_length=255, description="Metric key that triggered the guardrail"
+        max_length=255, null=True, index=True, description="Metric key"
     )
     threshold = fields.FloatField(description="Threshold value")
     observation_window_minutes = fields.IntField(
@@ -37,12 +35,13 @@ class GuardrailTriggerModel(Model):
         indexes = [
             ("experiment_id",),
             ("triggered_at",),
+            ("metric_key",),
         ]
 
     def to_domain(self) -> GuardrailTrigger:
         return GuardrailTrigger(
             experiment_id=self.experiment_id,
-            metric_key=self.metric_key,
+            metric_key=self.metric_key or "",
             threshold=self.threshold,
             observation_window_minutes=self.observation_window_minutes,
             action=GuardrailAction(self.action),

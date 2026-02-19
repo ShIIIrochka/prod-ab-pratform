@@ -7,8 +7,8 @@ from enum import StrEnum
 class GuardrailAction(StrEnum):
     """Действие при срабатывании guardrail."""
 
-    PAUSE = "pause"  # Поставить на паузу
-    ROLLBACK_TO_CONTROL = "rollback_to_control"  # Откатить к контролю
+    PAUSE = "pause"
+    ROLLBACK_TO_CONTROL = "rollback_to_control"
 
 
 @dataclass(frozen=True)

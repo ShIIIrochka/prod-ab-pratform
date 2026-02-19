@@ -85,7 +85,7 @@ erDiagram
         float audience_fraction
         json targeting_rule_json
         uuid owner_id FK
-        string target_metric_key
+        string target_metric_key FK
         json metric_keys_json
         bool rollback_to_control_active
         json completion_json
@@ -113,7 +113,7 @@ erDiagram
     guardrail_configs {
         int id PK
         uuid experiment_id FK
-        string metric_key
+        string metric_key FK
         float threshold
         int observation_window_minutes
         string action

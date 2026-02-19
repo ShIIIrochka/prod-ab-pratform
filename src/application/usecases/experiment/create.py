@@ -10,6 +10,7 @@ from src.application.ports.feature_flags_repository import (
 from src.application.ports.guardrail_configs_repository import (
     GuardrailConfigsRepositoryPort,
 )
+from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
 from src.application.ports.users_repository import UsersRepositoryPort
 from src.domain.aggregates.experiment import Experiment
@@ -31,12 +32,14 @@ class CreateExperimentUseCase:
         feature_flags_repository: FeatureFlagsRepositoryPort,
         user_repository: UsersRepositoryPort,
         guardrail_configs_repository: GuardrailConfigsRepositoryPort,
+        metrics_repository: MetricsRepositoryPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._feature_flags_repository = feature_flags_repository
         self._user_repository = user_repository
         self._guardrail_configs_repository = guardrail_configs_repository
+        self._metrics_repository = metrics_repository
         self._uow = uow
 
     async def execute(
@@ -77,15 +80,37 @@ class CreateExperimentUseCase:
         if data.targeting_rule:
             targeting_rule = TargetingRule(rule_expression=data.targeting_rule)
 
-        guardrail_configs = [
-            GuardrailConfig(
-                metric_key=g.metric_key,
-                threshold=g.threshold,
-                observation_window_minutes=g.observation_window_minutes,
-                action=g.action,
+        # Проверяем наличие метрик в каталоге, сохраняем ключи напрямую
+        if data.target_metric_key:
+            m = await self._metrics_repository.get_by_key(
+                data.target_metric_key
             )
-            for g in (data.guardrails or [])
-        ]
+            if not m:
+                msg = f"Metric '{data.target_metric_key}' not found"
+                raise ValueError(msg)
+
+        metric_keys: list[str] = []
+        for mk in data.metric_keys or []:
+            m = await self._metrics_repository.get_by_key(mk)
+            if not m:
+                msg = f"Metric '{mk}' not found"
+                raise ValueError(msg)
+            metric_keys.append(mk)
+
+        guardrail_configs: list[GuardrailConfig] = []
+        for g in data.guardrails or []:
+            m = await self._metrics_repository.get_by_key(g.metric_key)
+            if not m:
+                msg = f"Guardrail metric '{g.metric_key}' not found"
+                raise ValueError(msg)
+            guardrail_configs.append(
+                GuardrailConfig(
+                    metric_key=g.metric_key,
+                    threshold=g.threshold,
+                    observation_window_minutes=g.observation_window_minutes,
+                    action=g.action,
+                )
+            )
 
         experiment = Experiment(
             flag_key=data.flag_key,
@@ -99,7 +124,7 @@ class CreateExperimentUseCase:
             approvals=[],
             completion=None,
             target_metric_key=data.target_metric_key,
-            metric_keys=data.metric_keys,
+            metric_keys=metric_keys,
         )
         try:
             async with self._uow:

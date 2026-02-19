@@ -17,7 +17,7 @@ class GuardrailConfigModel(Model):
         max_length=36, index=True, description="Experiment UUID"
     )
     metric_key = fields.CharField(
-        max_length=255, description="Metric key to monitor"
+        max_length=255, index=True, description="Metric key"
     )
     threshold = fields.FloatField(
         description="Threshold value for guardrail trigger"
@@ -34,6 +34,7 @@ class GuardrailConfigModel(Model):
         table = "guardrail_configs"
         indexes = [
             ("experiment_id",),
+            ("metric_key",),
         ]
 
     def to_domain(self) -> GuardrailConfig:

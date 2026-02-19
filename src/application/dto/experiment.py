@@ -31,7 +31,7 @@ class GuardrailConfigInput(BaseModel):
 
 
 class GuardrailConfigResponse(BaseModel):
-    metric_key: str
+    metric_key: str = Field(..., description="Metric key")
     threshold: float
     observation_window_minutes: int
     action: GuardrailAction

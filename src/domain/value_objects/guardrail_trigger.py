@@ -19,10 +19,6 @@ class GuardrailTrigger:
     triggered_at: datetime
 
     def __post_init__(self) -> None:
-        """Валидация записи о срабатывании."""
         if not self.experiment_id:
             msg = "Experiment ID cannot be empty"
-            raise ValueError(msg)
-        if not self.metric_key:
-            msg = "Metric key cannot be empty"
             raise ValueError(msg)

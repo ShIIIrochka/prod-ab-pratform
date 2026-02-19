@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 import statistics
 
 from typing import Any
 
 from src.domain.aggregates.event import AttributionStatus, Event
 from src.domain.aggregates.metric import Metric
+from src.domain.services.calculation_rule_parser import parse_calculation_rule
 
 
 def _filter_attributed(events: list[Event]) -> list[Event]:
@@ -117,9 +117,8 @@ def calculate_metric(metric: Metric, events: list[Event]) -> float:
     """
     attributed_events = _filter_attributed(events)
 
-    try:
-        rule = json.loads(metric.calculation_rule)
-    except (json.JSONDecodeError, TypeError):
+    rule = parse_calculation_rule(metric.calculation_rule)
+    if rule is None:
         return 0.0
 
     return _evaluate_rule(rule, attributed_events)

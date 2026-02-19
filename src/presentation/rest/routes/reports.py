@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Security
@@ -27,10 +27,11 @@ async def get_experiment_report(
     from_time: datetime | None = None,
     to_time: datetime | None = None,
 ) -> ExperimentReportResponse:
+    now = datetime.now(UTC)
     if from_time is None:
-        from_time = datetime(2000, 1, 1)
+        from_time = now - timedelta(days=90)
     if to_time is None:
-        to_time = datetime(2100, 1, 1)
+        to_time = now
 
     use_case = container.resolve(GetExperimentReportUseCase)
     return await use_case.execute(

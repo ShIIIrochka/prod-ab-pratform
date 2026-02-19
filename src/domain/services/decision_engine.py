@@ -91,7 +91,7 @@ def compute_decision(
         return DecisionResult(applied=False, value="", variant_id=None)
 
     # Проверяем таргетинг
-    if experiment.targeting_rule is not None:
+    if experiment and experiment.targeting_rule:
         targeting_result = experiment.targeting_rule.evaluate(attributes)
         if not targeting_result:
             return DecisionResult(applied=False, value="", variant_id=None)

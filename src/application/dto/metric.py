@@ -11,11 +11,14 @@ class MetricCreateRequest(BaseModel):
     calculation_rule: str = Field(
         ...,
         description=(
-            "JSON calculation rule. Examples: "
+            "Calculation rule in JSON or DSL format. Examples: "
             '{"type":"COUNT","event_type_key":"conversion"}, '
             '{"type":"RATIO","numerator":{"type":"COUNT","event_type_key":"conversion"},'
             '"denominator":{"type":"COUNT","event_type_key":"exposure"}}, '
-            '{"type":"PERCENTILE","event_type_key":"latency","property":"duration_ms","percentile":95}'
+            "COUNT(conversion), "
+            "COUNT(error) / COUNT(exposure), "
+            "AVG(latency, duration_ms), "
+            "P95(latency, duration_ms)"
         ),
     )
     requires_exposure: bool = Field(
@@ -26,7 +29,7 @@ class MetricCreateRequest(BaseModel):
 
 
 class MetricResponse(BaseModel):
-    key: str
+    key: str = Field(..., description="Metric key (primary identifier)")
     name: str
     calculation_rule: str
     requires_exposure: bool

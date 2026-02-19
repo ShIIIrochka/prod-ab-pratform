@@ -8,14 +8,12 @@ from src.domain.aggregates.metric import Metric
 
 class MetricModel(Model):
     key = fields.CharField(
-        pk=True, max_length=255, description="Metric key (unique identifier)"
+        max_length=255, pk=True, description="Metric key (primary identifier)"
     )
     name = fields.CharField(
         max_length=500, description="Human-readable metric name"
     )
-
     calculation_rule = fields.TextField(description="Metric calculation rule")
-
     requires_exposure = fields.BooleanField(
         default=False,
         description="Whether metric requires exposure event for attribution",

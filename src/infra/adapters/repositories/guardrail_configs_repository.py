@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from uuid import UUID
 
 from src.application.ports.guardrail_configs_repository import (
     GuardrailConfigsRepositoryPort,
 )
+from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.domain.value_objects.guardrail_config import GuardrailConfig
+from src.infra.adapters.db.models.experiment import ExperimentModel
 from src.infra.adapters.db.models.guardrail_config import GuardrailConfigModel
 
 
@@ -30,3 +33,25 @@ class GuardrailConfigsRepository(GuardrailConfigsRepositoryPort):
                 for config in configs
             ]
             await GuardrailConfigModel.bulk_create(new_models)
+
+    async def get_for_running_experiments(
+        self,
+    ) -> dict[UUID, list[GuardrailConfig]]:
+        """Один запрос: все конфиги для экспериментов со статусом RUNNING."""
+        running_ids = await ExperimentModel.filter(
+            status=ExperimentStatus.RUNNING
+        ).values_list("id", flat=True)
+
+        if not running_ids:
+            return {}
+
+        models = await GuardrailConfigModel.filter(
+            experiment_id__in=[str(eid) for eid in running_ids]
+        ).all()
+
+        result: dict[UUID, list[GuardrailConfig]] = defaultdict(list)
+        for model in models:
+            exp_id = UUID(model.experiment_id)
+            result[exp_id].append(model.to_domain())
+
+        return dict(result)

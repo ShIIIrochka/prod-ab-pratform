@@ -82,7 +82,7 @@ class ExperimentModel(Model):
             completion=completion,
             rollback_to_control_active=self.rollback_to_control_active,
             target_metric_key=self.target_metric_key,
-            metric_keys=self.metric_keys or [],
+            metric_keys=list(self.metric_keys or []),
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
@@ -113,7 +113,7 @@ class ExperimentModel(Model):
             completion=completion_json,
             rollback_to_control_active=experiment.rollback_to_control_active,
             target_metric_key=experiment.target_metric_key,
-            metric_keys=experiment.metric_keys,
+            metric_keys=list(experiment.metric_keys),
             created_at=experiment.created_at,
             updated_at=experiment.updated_at,
         )
