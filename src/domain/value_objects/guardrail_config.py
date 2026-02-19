@@ -13,18 +13,12 @@ class GuardrailAction(StrEnum):
 
 @dataclass(frozen=True)
 class GuardrailConfig:
-    """Конфигурация guardrail для эксперимента."""
-
     metric_key: str
     threshold: float
     observation_window_minutes: int
     action: GuardrailAction
 
     def __post_init__(self) -> None:
-        """Валидация конфигурации guardrail."""
-        if not self.metric_key:
-            msg = "Metric key cannot be empty"
-            raise ValueError(msg)
         if self.observation_window_minutes <= 0:
             msg = (
                 f"Observation window must be positive, "

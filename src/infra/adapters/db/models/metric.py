@@ -7,11 +7,6 @@ from src.domain.aggregates.metric import Metric
 
 
 class MetricModel(Model):
-    """Tortoise модель для каталога метрик.
-
-    Соответствует domain.aggregates.metric.Metric
-    """
-
     key = fields.CharField(
         pk=True, max_length=255, description="Metric key (unique identifier)"
     )

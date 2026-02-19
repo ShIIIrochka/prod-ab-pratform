@@ -58,3 +58,19 @@ class EventsRepositoryPort(ABC):
     ) -> list[Event]:
         """Получить события по эксперименту и варианту в заданном временном окне."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_experiment_grouped_by_variant(
+        self,
+        experiment_id: UUID,
+        from_time: datetime,
+        to_time: datetime,
+        attribution_status: AttributionStatus | None = None,
+    ) -> dict[str, list[Event]]:
+        """Получить все события эксперимента, сгруппированные по имени варианта.
+
+        Выполняет 2 запроса вместо N (по числу вариантов):
+        1. Загружает decisions эксперимента → маппинг decision_id → variant_name
+        2. Загружает все события по decision_ids за указанный период
+        """
+        raise NotImplementedError

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from src.domain.value_objects.experiment_completion import ExperimentOutcome
 from src.domain.value_objects.experiment_status import ExperimentStatus
+from src.domain.value_objects.guardrail_config import GuardrailAction
 from src.domain.value_objects.targeting_rule import TargetingRule
 
 
@@ -14,6 +15,29 @@ class VariantInput(BaseModel):
     value: str | int | float | bool = Field(..., description="Variant value")
     weight: float = Field(..., description="Variant weight")
     is_control: bool = Field(..., description="Is control variant")
+
+
+class GuardrailConfigInput(BaseModel):
+    metric_key: str = Field(..., description="Metric key to monitor")
+    threshold: float = Field(
+        ..., description="Threshold value for guardrail trigger"
+    )
+    observation_window_minutes: int = Field(
+        ..., gt=0, description="Observation window in minutes"
+    )
+    action: GuardrailAction = Field(
+        ..., description="Action on trigger: pause or rollback_to_control"
+    )
+
+
+class GuardrailConfigResponse(BaseModel):
+    metric_key: str
+    threshold: float
+    observation_window_minutes: int
+    action: GuardrailAction
+
+    class Config:
+        from_attributes = True
 
 
 class ExperimentCreateRequest(BaseModel):
@@ -30,6 +54,10 @@ class ExperimentCreateRequest(BaseModel):
     metric_keys: list[str] = Field(
         default_factory=list,
         description="Additional metric keys to track",
+    )
+    guardrails: list[GuardrailConfigInput] = Field(
+        default_factory=list,
+        description="Guardrail rules for automatic experiment stopping",
     )
 
 
@@ -49,6 +77,10 @@ class ExperimentUpdateRequest(BaseModel):
     )
     metric_keys: list[str] | None = Field(
         None, description="Additional metric keys to track"
+    )
+    guardrails: list[GuardrailConfigInput] | None = Field(
+        None,
+        description="Guardrail rules (replaces all existing guardrails)",
     )
 
 
@@ -82,6 +114,10 @@ class ExperimentResponse(BaseModel):
     )
     metric_keys: list[str] = Field(
         default_factory=list, description="Additional metric keys"
+    )
+    guardrails: list[GuardrailConfigResponse] = Field(
+        default_factory=list,
+        description="Guardrail rules for this experiment",
     )
 
     class Config:

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from tortoise import fields
 from tortoise.models import Model
 
+from src.domain.value_objects.guardrail_config import (
+    GuardrailAction,
+    GuardrailConfig,
+)
+
 
 class GuardrailConfigModel(Model):
-    """Tortoise модель для конфигурации guardrails.
-
-    Соответствует domain.value_objects.guardrail_config.GuardrailConfig
-    """
-
     id = fields.IntField(pk=True, description="Auto-increment ID")
     experiment_id = fields.CharField(
         max_length=36, index=True, description="Experiment UUID"
@@ -33,3 +35,23 @@ class GuardrailConfigModel(Model):
         indexes = [
             ("experiment_id",),
         ]
+
+    def to_domain(self) -> GuardrailConfig:
+        return GuardrailConfig(
+            metric_key=self.metric_key,
+            threshold=self.threshold,
+            observation_window_minutes=self.observation_window_minutes,
+            action=GuardrailAction(self.action),
+        )
+
+    @classmethod
+    def from_domain(
+        cls, config: GuardrailConfig, experiment_id: UUID | str
+    ) -> GuardrailConfigModel:
+        return cls(
+            experiment_id=str(experiment_id),
+            metric_key=config.metric_key,
+            threshold=config.threshold,
+            observation_window_minutes=config.observation_window_minutes,
+            action=config.action.value,
+        )

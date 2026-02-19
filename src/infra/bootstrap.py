@@ -15,6 +15,12 @@ from src.application.ports.experiments_repository import (
 from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
+from src.application.ports.guardrail_configs_repository import (
+    GuardrailConfigsRepositoryPort,
+)
+from src.application.ports.guardrail_triggers_repository import (
+    GuardrailTriggersRepositoryPort,
+)
 from src.application.ports.jwt import JWTPort
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.password_hasher import PasswordHasherPort
@@ -46,6 +52,9 @@ from src.application.usecases.event_type.create import CreateEventTypeUseCase
 from src.application.usecases.event_type.get import GetEventTypeUseCase
 from src.application.usecases.event_type.list import ListEventTypesUseCase
 from src.application.usecases.events.send import SendEventsUseCase
+from src.application.usecases.guardrails.check_guardrails import (
+    CheckGuardrailsUseCase,
+)
 from src.application.usecases.metrics.create import CreateMetricUseCase
 from src.application.usecases.metrics.get import GetMetricUseCase
 from src.application.usecases.metrics.list import ListMetricsUseCase
@@ -62,6 +71,8 @@ from src.infra.adapters.repositories import (
     EventsRepository,
     ExperimentsRepository,
     FeatureFlagsRepository,
+    GuardrailConfigsRepository,
+    GuardrailTriggersRepository,
     MetricsRepository,
     UserRepository,
 )
@@ -70,6 +81,7 @@ from src.infra.adapters.services.event_validator import PydanticEventValidator
 from src.infra.adapters.services.pending_events_store import (
     RedisPendingEventsStore,
 )
+from src.infra.workers.guardrail_checker_worker import GuardrailCheckerWorker
 from src.infra.workers.pending_events_ttl_listener import (
     PendingEventsTTLListener,
 )
@@ -111,6 +123,12 @@ def create_container() -> Container:
     container.register(EventTypesRepositoryPort, EventTypesRepository)
     container.register(EventIdGeneratorPort, EventIdGenerator)
     container.register(MetricsRepositoryPort, MetricsRepository)
+    container.register(
+        GuardrailConfigsRepositoryPort, GuardrailConfigsRepository
+    )
+    container.register(
+        GuardrailTriggersRepositoryPort, GuardrailTriggersRepository
+    )
 
     redis_client = Redis.from_url(config.redis_url, decode_responses=True)
     container.register(Redis, instance=redis_client)
@@ -173,6 +191,7 @@ def create_container() -> Container:
     container.register(GetMetricUseCase)
     container.register(ListMetricsUseCase)
     container.register(GetExperimentReportUseCase)
+    container.register(CheckGuardrailsUseCase)
 
     container.register(
         PendingEventsTTLListener,
@@ -180,6 +199,17 @@ def create_container() -> Container:
             redis=redis_client,
             pending_store=container.resolve(PendingEventsStorePort),
             events_repository=container.resolve(EventsRepositoryPort),
+        ),
+    )
+
+    guardrail_checker_interval = int(
+        __import__("os").environ.get("GUARDRAIL_CHECK_INTERVAL_SECONDS", "60")
+    )
+    container.register(
+        GuardrailCheckerWorker,
+        instance=GuardrailCheckerWorker(
+            check_use_case=container.resolve(CheckGuardrailsUseCase),
+            interval_seconds=guardrail_checker_interval,
         ),
     )
 

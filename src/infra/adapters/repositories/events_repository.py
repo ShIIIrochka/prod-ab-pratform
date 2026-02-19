@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime
 from uuid import UUID
 
 from src.application.ports.events_repository import EventsRepositoryPort
 from src.domain.aggregates.event import AttributionStatus, Event
+from src.infra.adapters.db.models.decision import DecisionModel
 from src.infra.adapters.db.models.event import EventModel
 
 
@@ -51,8 +53,16 @@ class EventsRepository(EventsRepositoryPort):
         to_time: datetime,
         attribution_status: AttributionStatus | None = None,
     ) -> list[Event]:
+        # Получаем decision_ids для этого эксперимента
+        decision_ids = await DecisionModel.filter(
+            experiment_id=str(experiment_id)
+        ).values_list("id", flat=True)
+
+        if not decision_ids:
+            return []
+
         query = EventModel.filter(
-            decision__experiment_id=str(experiment_id),
+            decision_id__in=[str(d) for d in decision_ids],
             timestamp__gte=from_time,
             timestamp__lt=to_time,
         )
@@ -69,13 +79,50 @@ class EventsRepository(EventsRepositoryPort):
         to_time: datetime,
         attribution_status: AttributionStatus | None = None,
     ) -> list[Event]:
+        grouped = await self.get_by_experiment_grouped_by_variant(
+            experiment_id=experiment_id,
+            from_time=from_time,
+            to_time=to_time,
+            attribution_status=attribution_status,
+        )
+        return grouped.get(variant_name, [])
+
+    async def get_by_experiment_grouped_by_variant(
+        self,
+        experiment_id: UUID,
+        from_time: datetime,
+        to_time: datetime,
+        attribution_status: AttributionStatus | None = None,
+    ) -> dict[str, list[Event]]:
+        # Шаг 1: загружаем decisions эксперимента → {decision_id: variant_name}
+        decisions = await DecisionModel.filter(
+            experiment_id=str(experiment_id)
+        ).prefetch_related("variant")
+
+        decision_to_variant: dict[str, str] = {}
+        for decision in decisions:
+            if decision.variant_id is not None:
+                variant = await decision.variant
+                decision_to_variant[str(decision.id)] = variant.name
+
+        if not decision_to_variant:
+            return {}
+
+        # Шаг 2: загружаем все события за период одним запросом
         query = EventModel.filter(
-            decision__experiment_id=str(experiment_id),
-            decision__variant__name=variant_name,
+            decision_id__in=list(decision_to_variant.keys()),
             timestamp__gte=from_time,
             timestamp__lt=to_time,
         )
         if attribution_status is not None:
             query = query.filter(attribution_status=attribution_status.value)
-        models = await query.all()
-        return [m.to_domain() for m in models]
+        event_models = await query.all()
+
+        # Шаг 3: группируем по variant_name
+        grouped: dict[str, list[Event]] = defaultdict(list)
+        for model in event_models:
+            variant_name = decision_to_variant.get(model.decision_id)
+            if variant_name:
+                grouped[variant_name].append(model.to_domain())
+
+        return dict(grouped)

@@ -2,6 +2,11 @@
 
 Отчёт строится по атрибутированным событиям в заданном временном окне.
 Для каждого варианта вычисляются значения выбранных метрик и суточная динамика.
+
+Оптимизация нагрузки:
+- Один батчевый запрос событий вместо N запросов по вариантам.
+- Группировка событий в памяти по variant_name.
+- Переиспользование сгруппированных событий для метрик и динамики.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ from src.application.ports.experiments_repository import (
 )
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.domain.aggregates.event import AttributionStatus, Event
+from src.domain.aggregates.metric import Metric
 from src.domain.exceptions.decision import ExperimentNotFoundError
 from src.domain.services.metric_calculator import calculate_metric
 
@@ -48,7 +54,7 @@ class GetExperimentReportUseCase:
         if not experiment:
             raise ExperimentNotFoundError
 
-        # Собираем все ключи метрик: сначала target, потом остальные
+        # Собираем ключи метрик: target первым, остальные дедуплицированы
         all_metric_keys: list[str] = []
         if experiment.target_metric_key:
             all_metric_keys.append(experiment.target_metric_key)
@@ -56,25 +62,27 @@ class GetExperimentReportUseCase:
             if key not in all_metric_keys:
                 all_metric_keys.append(key)
 
-        # Загружаем метрики из каталога
-        metrics_map = {}
+        # Загружаем метрики из каталога одним проходом
+        metrics_map: dict[str, Metric] = {}
         for key in all_metric_keys:
             metric = await self._metrics_repository.get_by_key(key)
             if metric:
                 metrics_map[key] = metric
 
-        # Строим отчёт по каждому варианту
+        # Один запрос на все события эксперимента, сгруппированные по варианту.
+        # Заменяет N запросов get_by_experiment_and_variant.
+        events_by_variant = (
+            await self._events_repository.get_by_experiment_grouped_by_variant(
+                experiment_id=experiment_id,
+                from_time=from_time,
+                to_time=to_time,
+                attribution_status=AttributionStatus.ATTRIBUTED,
+            )
+        )
+
         variant_reports = []
         for variant in experiment.variants:
-            events = (
-                await self._events_repository.get_by_experiment_and_variant(
-                    experiment_id=experiment_id,
-                    variant_name=variant.name,
-                    from_time=from_time,
-                    to_time=to_time,
-                    attribution_status=AttributionStatus.ATTRIBUTED,
-                )
-            )
+            events = events_by_variant.get(variant.name, [])
 
             metric_values = []
             dynamics_list = []
@@ -90,7 +98,6 @@ class GetExperimentReportUseCase:
                     )
                 )
 
-                # Суточная динамика
                 day_points = _compute_daily_dynamics(
                     metric, events, from_time, to_time
                 )
@@ -122,13 +129,12 @@ class GetExperimentReportUseCase:
 
 
 def _compute_daily_dynamics(
-    metric,
+    metric: Metric,
     events: list[Event],
     from_time: datetime,
     to_time: datetime,
 ) -> list[MetricDynamicsPoint]:
     """Группирует события по дням и вычисляет метрику для каждого дня."""
-    # Группируем события по дате (UTC)
     buckets: dict[datetime, list[Event]] = defaultdict(list)
     for event in events:
         ts = event.timestamp
@@ -137,7 +143,6 @@ def _compute_daily_dynamics(
         day_start = ts.replace(hour=0, minute=0, second=0, microsecond=0)
         buckets[day_start].append(event)
 
-    # Перебираем дни в окне
     points = []
     current = from_time.replace(hour=0, minute=0, second=0, microsecond=0)
     if current.tzinfo is None:

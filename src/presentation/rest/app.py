@@ -13,6 +13,7 @@ from starlette.middleware.authentication import AuthenticationMiddleware
 from src.application.ports.jwt import JWTPort
 from src.infra.adapters.config import Config
 from src.infra.adapters.db.db import Database
+from src.infra.workers.guardrail_checker_worker import GuardrailCheckerWorker
 from src.infra.workers.pending_events_ttl_listener import (
     PendingEventsTTLListener,
 )
@@ -45,7 +46,18 @@ async def lifespan(_: FastAPI):
     )
     ttl_task = asyncio.create_task(ttl_listener.start())
 
+    guardrail_worker: GuardrailCheckerWorker = container.resolve(
+        GuardrailCheckerWorker
+    )
+    guardrail_task = asyncio.create_task(guardrail_worker.start())
+
     yield
+
+    guardrail_task.cancel()
+    try:
+        await guardrail_task
+    except asyncio.CancelledError:
+        pass
 
     ttl_task.cancel()
     try:

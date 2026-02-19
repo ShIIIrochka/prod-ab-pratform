@@ -12,10 +12,17 @@ from src.application.dto.experiment import (
     ExperimentListResponse,
     ExperimentResponse,
     ExperimentUpdateRequest,
+    GuardrailConfigResponse,
     RejectExperimentRequest,
     RequestChangesRequest,
 )
 from src.application.dto.user import UserResponse
+from src.application.ports.guardrail_configs_repository import (
+    GuardrailConfigsRepositoryPort,
+)
+from src.application.ports.guardrail_triggers_repository import (
+    GuardrailTriggersRepositoryPort,
+)
 from src.application.usecases import (
     ApproveExperimentUseCase,
     CompleteExperimentUseCase,
@@ -29,6 +36,7 @@ from src.application.usecases import (
     SendExperimentToReviewUseCase,
     UpdateExperimentUseCase,
 )
+from src.domain.aggregates.experiment import Experiment
 from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.domain.value_objects.user_role import UserRole
 from src.presentation.rest.dependencies import (
@@ -43,6 +51,25 @@ router = APIRouter(
     tags=["Experiments"],
     dependencies=[Security(JWTBackend.auth_required)],
 )
+
+
+async def _build_experiment_response(
+    experiment: Experiment, container: Container
+) -> ExperimentResponse:
+    """Строит ExperimentResponse, дополняя его guardrails из БД."""
+    guardrail_repo = container.resolve(GuardrailConfigsRepositoryPort)
+    guardrails = await guardrail_repo.get_by_experiment_id(experiment.id)
+    response = ExperimentResponse.model_validate(experiment)
+    response.guardrails = [
+        GuardrailConfigResponse(
+            metric_key=g.metric_key,
+            threshold=g.threshold,
+            observation_window_minutes=g.observation_window_minutes,
+            action=g.action,
+        )
+        for g in guardrails
+    ]
+    return response
 
 
 @router.post(
@@ -60,7 +87,7 @@ async def create_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(CreateExperimentUseCase)
     experiment = await use_case.execute(data, current_user.id)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.get("", response_model=ExperimentListResponse)
@@ -83,7 +110,7 @@ async def get_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(GetExperimentUseCase)
     experiment = await use_case.execute(experiment_id)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.patch("/{experiment_id}", response_model=ExperimentResponse)
@@ -98,7 +125,7 @@ async def update_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(UpdateExperimentUseCase)
     experiment = await use_case.execute(experiment_id, data)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.post(
@@ -114,7 +141,7 @@ async def send_to_review(
 ) -> ExperimentResponse:
     use_case = container.resolve(SendExperimentToReviewUseCase)
     experiment = await use_case.execute(experiment_id)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.post("/{experiment_id}/approve", response_model=ExperimentResponse)
@@ -129,7 +156,7 @@ async def approve_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(ApproveExperimentUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id, data)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.post(
@@ -146,7 +173,7 @@ async def request_changes(
 ) -> ExperimentResponse:
     use_case = container.resolve(RequestChangesUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id, data)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.post("/{experiment_id}/reject", response_model=ExperimentResponse)
@@ -161,7 +188,7 @@ async def reject_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(RejectExperimentUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id, data)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.post("/{experiment_id}/launch", response_model=ExperimentResponse)
@@ -175,7 +202,7 @@ async def launch_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(LaunchExperimentUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.post("/{experiment_id}/pause", response_model=ExperimentResponse)
@@ -189,7 +216,7 @@ async def pause_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(PauseExperimentUseCase)
     experiment = await use_case.execute(experiment_id)
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
 
 
 @router.post("/{experiment_id}/complete", response_model=ExperimentResponse)
@@ -206,4 +233,26 @@ async def complete_experiment(
     experiment = await use_case.execute(
         experiment_id, UUID(current_user.id), data
     )
-    return ExperimentResponse.model_validate(experiment)
+    return await _build_experiment_response(experiment, container)
+
+
+@router.get("/{experiment_id}/guardrail-triggers")
+async def get_guardrail_triggers(
+    experiment_id: UUID,
+    container: Container,
+) -> list[dict]:
+    """История срабатываний guardrails для эксперимента (аудит)."""
+    repo = container.resolve(GuardrailTriggersRepositoryPort)
+    triggers = await repo.get_by_experiment_id(experiment_id)
+    return [
+        {
+            "experiment_id": t.experiment_id,
+            "metric_key": t.metric_key,
+            "threshold": t.threshold,
+            "observation_window_minutes": t.observation_window_minutes,
+            "action": t.action,
+            "actual_value": t.actual_value,
+            "triggered_at": t.triggered_at.isoformat(),
+        }
+        for t in triggers
+    ]

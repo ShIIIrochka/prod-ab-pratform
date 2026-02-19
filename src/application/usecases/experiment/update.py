@@ -6,6 +6,9 @@ from src.application.dto.experiment import ExperimentUpdateRequest
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
+from src.application.ports.guardrail_configs_repository import (
+    GuardrailConfigsRepositoryPort,
+)
 from src.application.ports.uow import UnitOfWorkPort
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
@@ -13,6 +16,7 @@ from src.domain.exceptions.decision import (
     ExperimentNotFoundError,
     VariantNameAlreadyExistsError,
 )
+from src.domain.value_objects.guardrail_config import GuardrailConfig
 from src.domain.value_objects.targeting_rule import TargetingRule
 
 
@@ -20,9 +24,11 @@ class UpdateExperimentUseCase:
     def __init__(
         self,
         experiments_repository: ExperimentsRepositoryPort,
+        guardrail_configs_repository: GuardrailConfigsRepositoryPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._experiments_repository = experiments_repository
+        self._guardrail_configs_repository = guardrail_configs_repository
         self._uow = uow
 
     async def execute(
@@ -65,9 +71,25 @@ class UpdateExperimentUseCase:
         if data.metric_keys is not None:
             experiment.metric_keys = data.metric_keys
 
+        new_guardrails: list[GuardrailConfig] | None = None
+        if data.guardrails is not None:
+            new_guardrails = [
+                GuardrailConfig(
+                    metric_key=g.metric_key,
+                    threshold=g.threshold,
+                    observation_window_minutes=g.observation_window_minutes,
+                    action=g.action,
+                )
+                for g in data.guardrails
+            ]
+
         try:
             async with self._uow:
                 await self._experiments_repository.save(experiment)
+                if new_guardrails is not None:
+                    await self._guardrail_configs_repository.replace_for_experiment(
+                        experiment_id, new_guardrails
+                    )
         except ValueError as e:
             if "Variant name already exists" in str(e):
                 raise VariantNameAlreadyExistsError from e
