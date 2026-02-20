@@ -7,6 +7,7 @@ from .decision import (
     ExperimentNotFoundError,
     FeatureFlagAlreadyExistsError,
     VariantNameAlreadyExistsError,
+    DuplicateVariantNamesError,
 )
 
 

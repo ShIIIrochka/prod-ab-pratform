@@ -3,6 +3,9 @@ from src.application.usecases.decide import DecideUseCase
 from src.application.usecases.experiment.approve import (
     ApproveExperimentUseCase,
 )
+from src.application.usecases.experiment.archive import (
+    ArchiveExperimentUseCase,
+)
 from src.application.usecases.experiment.complete import (
     CompleteExperimentUseCase,
 )

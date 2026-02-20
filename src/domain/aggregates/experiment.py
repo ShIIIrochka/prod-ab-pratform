@@ -7,6 +7,7 @@ from uuid import UUID
 from src.domain.aggregates import BaseEntity
 from src.domain.aggregates.user import User
 from src.domain.entities.variant import Variant
+from src.domain.exceptions import DuplicateVariantNamesError
 from src.domain.exceptions.experiment import CannotReviewExperimentError
 from src.domain.value_objects.approval import Approval
 from src.domain.value_objects.experiment_completion import (
@@ -37,6 +38,12 @@ class Experiment(BaseEntity):
     updated_at: datetime = field(default_factory=datetime.utcnow)
 
     def __post_init__(self) -> None:
+        variant_names = [v.name for v in self.variants]
+        duplicates = {
+            name for name in variant_names if variant_names.count(name) > 1
+        }
+        if duplicates:
+            raise DuplicateVariantNamesError
         if self.audience_fraction <= 0 or self.audience_fraction > 1:
             msg = (
                 f"Audience fraction must be between 0 and 1, "
@@ -209,6 +216,16 @@ class Experiment(BaseEntity):
             completed_by=completed_by,
         )
         self.status = ExperimentStatus.COMPLETED
+        self.updated_at = datetime.utcnow()
+
+    def archive(self) -> None:
+        if self.status != ExperimentStatus.COMPLETED:
+            msg = (
+                f"Cannot archive experiment in status {self.status}. "
+                "Only completed experiments can be archived."
+            )
+            raise ValueError(msg)
+        self.status = ExperimentStatus.ARCHIVED
         self.updated_at = datetime.utcnow()
 
     def is_active(self) -> bool:

@@ -25,6 +25,7 @@ from src.application.ports.guardrail_triggers_repository import (
 )
 from src.application.usecases import (
     ApproveExperimentUseCase,
+    ArchiveExperimentUseCase,
     CompleteExperimentUseCase,
     CreateExperimentUseCase,
     GetExperimentUseCase,
@@ -236,6 +237,21 @@ async def complete_experiment(
     experiment = await use_case.execute(
         experiment_id, UUID(current_user.id), data
     )
+    return await _build_experiment_response(experiment, container)
+
+
+@router.post("/{experiment_id}/archive", response_model=ExperimentResponse)
+async def archive_experiment(
+    experiment_id: UUID,
+    container: Container,
+    _: Annotated[
+        UserResponse,
+        Depends(require_roles([UserRole.ADMIN, UserRole.EXPERIMENTER])),
+    ],
+) -> ExperimentResponse:
+    """Archive a completed experiment (COMPLETED → ARCHIVED)."""
+    use_case = container.resolve(ArchiveExperimentUseCase)
+    experiment = await use_case.execute(experiment_id)
     return await _build_experiment_response(experiment, container)
 
 

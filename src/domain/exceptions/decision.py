@@ -21,3 +21,8 @@ class FeatureFlagAlreadyExistsError(Exception):
 @dataclass
 class VariantNameAlreadyExistsError(Exception):
     message = "Variant with this name already exists"
+
+
+@dataclass
+class DuplicateVariantNamesError(Exception):
+    message = "You have duplicated variant names"

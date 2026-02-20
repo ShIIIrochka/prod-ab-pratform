@@ -132,8 +132,6 @@ class CreateExperimentUseCase:
                 await self._guardrail_configs_repository.replace_for_experiment(
                     experiment.id, guardrail_configs
                 )
-        except ValueError as e:
-            if "Variant name already exists" in str(e):
-                raise VariantNameAlreadyExistsError from e
-            raise
+        except ValueError:
+            raise VariantNameAlreadyExistsError
         return experiment
