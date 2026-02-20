@@ -161,7 +161,9 @@ class SendEventsUseCase:
             )
             async with self._uow:
                 await self._events_repository.save(event)
-                await self._attribute_pending_events(event_data.decision_id)
+                await self._attribute_pending_events(
+                    event_data.decision_id, decision
+                )
 
             await self._update_metric_aggregates(event, decision)
             return event
@@ -213,7 +215,9 @@ class SendEventsUseCase:
         await self._update_metric_aggregates(event, decision)
         return event
 
-    async def _attribute_pending_events(self, decision_id: str) -> None:
+    async def _attribute_pending_events(
+        self, decision_id: str, decision: Decision
+    ) -> None:
         pending_events = await self._pending_store.get_by_decision_id(
             decision_id
         )
@@ -223,6 +227,7 @@ class SendEventsUseCase:
         for event in pending_events:
             event.mark_as_attributed()
             await self._events_repository.save(event)
+            await self._update_metric_aggregates(event, decision)
 
         await self._pending_store.delete_by_event_ids(
             [str(e.id) for e in pending_events]

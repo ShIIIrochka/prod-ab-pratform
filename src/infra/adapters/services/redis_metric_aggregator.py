@@ -156,7 +156,12 @@ async def _eval_rule(
             return 0.0
         numerator = await _eval_rule(num_rule, redis, base, buckets)
         denominator = await _eval_rule(den_rule, redis, base, buckets)
-        return numerator / denominator if denominator != 0 else 0.0
+        if numerator == 0 and denominator == 0:
+            return 0.0
+        elif numerator != 0 and denominator == 0:
+            return float(numerator)
+        else:
+            return numerator / denominator
 
     return 0.0
 

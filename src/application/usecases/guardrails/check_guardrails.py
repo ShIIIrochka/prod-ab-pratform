@@ -1,12 +1,11 @@
 """
-Алгоритм:
-  Один запрос: все RUNNING-эксперименты + guardrail-конфиги (get_for_running_experiments).
-  Для каждого эксперимента:
-    Для каждого guardrail-правила:
-      1. Прочитать агрегаты из Redis (MetricAggregator.get_value) — без SQL-запроса.
-      2. Если значение > порога → сработал guardrail:
-         - Выполнить action (PAUSE или ROLLBACK_TO_CONTROL)
-         - Записать GuardrailTrigger в историю
+Один запрос: все RUNNING-эксперименты + guardrail-конфиги (get_for_running_experiments).
+Для каждого эксперимента:
+  Для каждого guardrail-правила:
+    1. Прочитать агрегаты из Redis (MetricAggregator.get_value) — без SQL-запроса.
+    2. Если значение > порога → сработал guardrail:
+       - Выполнить action (PAUSE или ROLLBACK_TO_CONTROL)
+       - Записать GuardrailTrigger в историю
 """
 
 from __future__ import annotations
@@ -86,7 +85,6 @@ class CheckGuardrailsUseCase:
                     metric=metric,
                     window_minutes=config.observation_window_minutes,
                 )
-
                 if actual_value <= config.threshold:
                     continue
 
