@@ -4,6 +4,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from src.domain.exceptions import (
+    DuplicateVariantNamesError,
     ExperimentNotFoundError,
     FeatureFlagAlreadyExistsError,
     FeatureFlagNotFoundError,
@@ -82,6 +83,15 @@ def setup_exc_handlers(app: FastAPI) -> None:
     @app.exception_handler(VariantNameAlreadyExistsError)
     async def variant_name_already_exists_exception_handler(
         request: Request, exc: VariantNameAlreadyExistsError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": exc.message},
+        )
+
+    @app.exception_handler(DuplicateVariantNamesError)
+    async def duplicate_variant_names_exception_handler(
+        request: Request, exc: DuplicateVariantNamesError
     ) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

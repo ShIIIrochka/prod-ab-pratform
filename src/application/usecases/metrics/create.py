@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
-from src.domain.aggregates.metric import Metric
+from src.domain.aggregates.metric import AggregationUnit, Metric
 
 
 class CreateMetricUseCase:
@@ -19,7 +19,7 @@ class CreateMetricUseCase:
         key: str,
         name: str,
         calculation_rule: str,
-        requires_exposure: bool = False,
+        aggregation_unit: str = "event",
         description: str | None = None,
     ) -> Metric:
         existing = await self._metrics_repository.get_by_key(key)
@@ -31,7 +31,7 @@ class CreateMetricUseCase:
             key=key,
             name=name,
             calculation_rule=calculation_rule,
-            requires_exposure=requires_exposure,
+            aggregation_unit=AggregationUnit(aggregation_unit),
             description=description,
         )
         async with self._uow:

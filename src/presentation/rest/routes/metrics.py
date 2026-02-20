@@ -39,7 +39,7 @@ async def create_metric(
         key=data.key,
         name=data.name,
         calculation_rule=data.calculation_rule,
-        requires_exposure=data.requires_exposure,
+        aggregation_unit=data.aggregation_unit,
         description=data.description,
     )
     return MetricResponse.model_validate(metric)

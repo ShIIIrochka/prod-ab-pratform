@@ -30,6 +30,7 @@ from src.application.ports.uow import UnitOfWorkPort
 from src.application.ports.users_repository import UsersRepositoryPort
 from src.application.usecases import (
     ApproveExperimentUseCase,
+    ArchiveExperimentUseCase,
     CompleteExperimentUseCase,
     CreateExperimentUseCase,
     CreateFeatureFlagUseCase,
@@ -191,6 +192,7 @@ def create_container() -> Container:
     container.register(LaunchExperimentUseCase)
     container.register(PauseExperimentUseCase)
     container.register(CompleteExperimentUseCase)
+    container.register(ArchiveExperimentUseCase)
 
     container.register(
         SendEventsUseCase,

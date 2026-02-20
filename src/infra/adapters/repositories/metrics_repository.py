@@ -12,6 +12,12 @@ class MetricsRepository(MetricsRepositoryPort):
             return None
         return model.to_domain()
 
+    async def get_by_keys(self, keys: list[str]) -> dict[str, Metric]:
+        if not keys:
+            return {}
+        models = await MetricModel.filter(key__in=keys).all()
+        return {m.key: m.to_domain() for m in models}
+
     async def save(self, metric: Metric) -> None:
         existing = await MetricModel.get_or_none(key=metric.key)
         model = MetricModel.from_domain(metric)

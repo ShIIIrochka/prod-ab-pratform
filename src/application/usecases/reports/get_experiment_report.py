@@ -46,19 +46,11 @@ class GetExperimentReportUseCase:
         if not experiment:
             raise ExperimentNotFoundError
 
-        # Нормализуем временные метки (ТЗ 5.2: from включительно, to исключительно)
         if from_time.tzinfo is None:
             from_time = from_time.replace(tzinfo=UTC)
         if to_time.tzinfo is None:
             to_time = to_time.replace(tzinfo=UTC)
 
-        # Собираем уникальные ключи метрик из конфига эксперимента (ТЗ 5.4.1)
-        # metric_keys: list[str] = []
-        # if experiment.target_metric_key:
-        #     metric_keys.append(experiment.target_metric_key)
-        # for mk in experiment.metric_keys or []:
-        #     if mk not in metric_keys:
-        #         metric_keys.append(mk)
         if experiment.target_metric_key:
             metric_keys = list(
                 set(experiment.metric_keys + [experiment.target_metric_key])
@@ -66,12 +58,9 @@ class GetExperimentReportUseCase:
         else:
             metric_keys = list(set(experiment.metric_keys))
 
-        # Загружаем метрики из каталога одним проходом
-        metrics_map: dict[str, Metric] = {}
-        for mk in metric_keys:
-            metric = await self._metrics_repository.get_by_key(mk)
-            if metric:
-                metrics_map[mk] = metric
+        metrics_map: dict[
+            str, Metric
+        ] = await self._metrics_repository.get_by_keys(metric_keys)
 
         # Загружаем события эксперимента, сгруппированные по варианту
         events_by_variant = (
@@ -83,7 +72,7 @@ class GetExperimentReportUseCase:
             )
         )
 
-        # Строим отчёт по каждому варианту эксперимента (ТЗ 5.3)
+        # Строим отчёт по каждому варианту эксперимента
         variant_reports: list[VariantReportResponse] = []
         for variant in experiment.variants:
             events = events_by_variant.get(variant.name, [])
@@ -103,6 +92,7 @@ class GetExperimentReportUseCase:
                         metric_name=metric.name,
                         value=value,
                         is_primary=(mk == experiment.target_metric_key),
+                        aggregation_unit=metric.aggregation_unit.value,
                     )
                 )
 
@@ -128,8 +118,8 @@ class GetExperimentReportUseCase:
             mk: metrics_map[mk].aggregation_unit.value for mk in metrics_map
         }
         unique_units = set(units.values())
-        aggregation_unit_ctx: str | dict = (
-            next(iter(unique_units)) if len(unique_units) == 1 else units
+        top_level_unit: str | None = (
+            next(iter(unique_units)) if len(unique_units) == 1 else None
         )
 
         return ExperimentReportResponse(
@@ -138,9 +128,9 @@ class GetExperimentReportUseCase:
             from_time=from_time,
             to_time=to_time,
             variants=variant_reports,
+            aggregation_unit=top_level_unit,
             context={
                 "attribution": "attributed_only",
-                "aggregation_unit": aggregation_unit_ctx,
                 "window_from": from_time.isoformat(),
                 "window_to": to_time.isoformat(),
                 "metric_keys": metric_keys,

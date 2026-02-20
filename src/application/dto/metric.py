@@ -21,9 +21,9 @@ class MetricCreateRequest(BaseModel):
             "P95(latency, duration_ms)"
         ),
     )
-    requires_exposure: bool = Field(
-        False,
-        description="Whether metric requires exposure attribution",
+    aggregation_unit: str = Field(
+        "event",
+        description="Aggregation unit: 'event' (count events) or 'user' (count unique users)",
     )
     description: str | None = Field(None, description="Metric description")
 
@@ -32,7 +32,7 @@ class MetricResponse(BaseModel):
     key: str = Field(..., description="Metric key (primary identifier)")
     name: str
     calculation_rule: str
-    requires_exposure: bool
+    aggregation_unit: str
     description: str | None
 
     class Config:

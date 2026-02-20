@@ -11,6 +11,10 @@ class MetricsRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_by_keys(self, keys: list[str]) -> dict[str, Metric]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def save(self, metric: Metric) -> None:
         raise NotImplementedError
 

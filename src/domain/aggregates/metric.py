@@ -14,6 +14,5 @@ class Metric:
     key: str
     name: str
     calculation_rule: str
-    requires_exposure: bool = False
     description: str | None = None
     aggregation_unit: AggregationUnit = AggregationUnit.EVENT

@@ -13,6 +13,10 @@ class MetricValueResponse(BaseModel):
     is_primary: bool = Field(
         False, description="Whether this is the primary target metric"
     )
+    aggregation_unit: str = Field(
+        "event",
+        description="Aggregation unit used for this metric: 'event' or 'user'",
+    )
 
 
 class MetricDynamicsPoint(BaseModel):
@@ -51,6 +55,13 @@ class ExperimentReportResponse(BaseModel):
     variants: list[VariantReportResponse] = Field(
         default_factory=list,
         description="Per-variant metric reports",
+    )
+    aggregation_unit: str | None = Field(
+        None,
+        description=(
+            "Aggregation unit for the report ('event' or 'user'). "
+            "None if metrics use different units — see per-metric aggregation_unit."
+        ),
     )
     context: dict = Field(
         default_factory=dict,

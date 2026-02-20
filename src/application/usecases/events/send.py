@@ -253,17 +253,12 @@ class SendEventsUseCase:
             if not configs:
                 return
 
-            # Загружаем уникальные метрики guardrails
-            metrics: list[Metric] = []
-            seen_keys: set[str] = set()
-            for config in configs:
-                if config.metric_key not in seen_keys:
-                    metric = await self._metrics_repository.get_by_key(
-                        config.metric_key
-                    )
-                    if metric:
-                        metrics.append(metric)
-                        seen_keys.add(config.metric_key)
+            # Batch-load guardrail metrics in a single query
+            unique_metric_keys = list({c.metric_key for c in configs})
+            metrics_map = await self._metrics_repository.get_by_keys(
+                unique_metric_keys
+            )
+            metrics: list[Metric] = list(metrics_map.values())
 
             if not metrics:
                 return
