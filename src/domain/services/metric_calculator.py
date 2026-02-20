@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import statistics
 
+from collections import defaultdict
 from typing import Any
 
 from src.domain.aggregates.event import AttributionStatus, Event
-from src.domain.aggregates.metric import Metric
+from src.domain.aggregates.metric import AggregationUnit, Metric
 from src.domain.services.calculation_rule_parser import parse_calculation_rule
 
 
@@ -33,6 +34,30 @@ def _extract_numeric_property(
             except (TypeError, ValueError):
                 pass
     return values
+
+
+def _deduplicate_by_user(events: list[Event]) -> list[Event]:
+    """Keep only the first event per (subject_id, event_type_key) pair.
+
+    Used for user-level aggregation so that each user contributes at most
+    once per event type to the metric calculation.
+    """
+    seen: set[tuple[str, str]] = set()
+    result: list[Event] = []
+    for e in events:
+        key = (e.subject_id, e.event_type_key)
+        if key not in seen:
+            seen.add(key)
+            result.append(e)
+    return result
+
+
+def _group_by_user(events: list[Event]) -> dict[str, list[Event]]:
+    """Group events by subject_id."""
+    groups: dict[str, list[Event]] = defaultdict(list)
+    for e in events:
+        groups[e.subject_id].append(e)
+    return dict(groups)
 
 
 def _evaluate_rule(rule: dict[str, Any], events: list[Event]) -> float:
@@ -101,11 +126,92 @@ def _evaluate_rule(rule: dict[str, Any], events: list[Event]) -> float:
     return 0.0
 
 
+def _evaluate_rule_user(rule: dict[str, Any], events: list[Event]) -> float:
+    """Вычисляет метрику с единицей агрегации = пользователь.
+
+    - COUNT: количество уникальных пользователей, у которых есть хотя бы одно
+      событие указанного типа.
+    - SUM/AVG/PERCENTILE: агрегация по значениям, усреднённым на пользователя
+      (один пользователь — одно значение, равное среднему по его событиям).
+    - RATIO: числитель/знаменатель считаются поверх user-deduplicated событий.
+    """
+    rule_type = rule.get("type", "").upper()
+
+    if rule_type == "COUNT":
+        event_type_key = rule.get("event_type_key")
+        if not event_type_key:
+            return 0.0
+        filtered = _filter_by_type(events, event_type_key)
+        return float(len({e.subject_id for e in filtered}))
+
+    if rule_type == "SUM":
+        event_type_key = rule.get("event_type_key")
+        prop = rule.get("property")
+        if not event_type_key or not prop:
+            return 0.0
+        filtered = _filter_by_type(events, event_type_key)
+        by_user = _group_by_user(filtered)
+        per_user_values = [
+            statistics.mean(_extract_numeric_property(u_events, prop))
+            for u_events in by_user.values()
+            if _extract_numeric_property(u_events, prop)
+        ]
+        return sum(per_user_values) if per_user_values else 0.0
+
+    if rule_type == "AVG":
+        event_type_key = rule.get("event_type_key")
+        prop = rule.get("property")
+        if not event_type_key or not prop:
+            return 0.0
+        filtered = _filter_by_type(events, event_type_key)
+        by_user = _group_by_user(filtered)
+        per_user_values = [
+            statistics.mean(_extract_numeric_property(u_events, prop))
+            for u_events in by_user.values()
+            if _extract_numeric_property(u_events, prop)
+        ]
+        return statistics.mean(per_user_values) if per_user_values else 0.0
+
+    if rule_type == "PERCENTILE":
+        event_type_key = rule.get("event_type_key")
+        prop = rule.get("property")
+        percentile = rule.get("percentile", 95)
+        if not event_type_key or not prop:
+            return 0.0
+        filtered = _filter_by_type(events, event_type_key)
+        by_user = _group_by_user(filtered)
+        per_user_values = [
+            statistics.mean(_extract_numeric_property(u_events, prop))
+            for u_events in by_user.values()
+            if _extract_numeric_property(u_events, prop)
+        ]
+        if not per_user_values:
+            return 0.0
+        sorted_vals = sorted(per_user_values)
+        idx = min(
+            int(len(sorted_vals) * percentile / 100), len(sorted_vals) - 1
+        )
+        return sorted_vals[idx]
+
+    if rule_type == "RATIO":
+        numerator_rule = rule.get("numerator")
+        denominator_rule = rule.get("denominator")
+        if not numerator_rule or not denominator_rule:
+            return 0.0
+        numerator = _evaluate_rule_user(numerator_rule, events)
+        denominator = _evaluate_rule_user(denominator_rule, events)
+        if denominator == 0:
+            return 0.0
+        return numerator / denominator
+
+    return 0.0
+
+
 def calculate_metric(metric: Metric, events: list[Event]) -> float:
     """Вычисляет значение метрики по списку событий.
 
     Перед вычислением фильтрует только ATTRIBUTED-события.
-    Правило вычисления задаётся в JSON формате в поле calculation_rule.
+    Если aggregation_unit == "user", агрегирует по уникальным пользователям.
 
     Пример calculation_rule:
         '{"type": "COUNT", "event_type_key": "conversion"}'
@@ -120,5 +226,8 @@ def calculate_metric(metric: Metric, events: list[Event]) -> float:
     rule = parse_calculation_rule(metric.calculation_rule)
     if rule is None:
         return 0.0
+
+    if metric.aggregation_unit == AggregationUnit.USER:
+        return _evaluate_rule_user(rule, attributed_events)
 
     return _evaluate_rule(rule, attributed_events)

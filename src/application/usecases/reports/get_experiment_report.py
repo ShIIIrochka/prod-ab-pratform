@@ -1,16 +1,3 @@
-"""Use case: получить отчёт по эксперименту.
-
-Соответствие ТЗ:
-  5.2 — временное окно: from_time включительно, to_time исключительно
-  5.3 — отчёт по всему эксперименту и по каждому варианту отдельно
-  5.4 — метрики берутся только из конфига эксперимента (target + additional),
-        возвращается контекст расчёта, динамика по дням только для дней с данными
-Критерии:
-  B6-1 — фильтр по периоду
-  B6-2 — разрез по вариантам
-  B6-3 — показываются метрики из конфигурации эксперимента
-"""
-
 from __future__ import annotations
 
 from collections import defaultdict
@@ -137,6 +124,14 @@ class GetExperimentReportUseCase:
                 )
             )
 
+        units = {
+            mk: metrics_map[mk].aggregation_unit.value for mk in metrics_map
+        }
+        unique_units = set(units.values())
+        aggregation_unit_ctx: str | dict = (
+            next(iter(unique_units)) if len(unique_units) == 1 else units
+        )
+
         return ExperimentReportResponse(
             experiment_id=experiment_id,
             experiment_name=experiment.name,
@@ -145,7 +140,7 @@ class GetExperimentReportUseCase:
             variants=variant_reports,
             context={
                 "attribution": "attributed_only",
-                "aggregation_unit": "event",
+                "aggregation_unit": aggregation_unit_ctx,
                 "window_from": from_time.isoformat(),
                 "window_to": to_time.isoformat(),
                 "metric_keys": metric_keys,

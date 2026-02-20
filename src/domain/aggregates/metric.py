@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
+
+
+class AggregationUnit(StrEnum):
+    EVENT = "event"
+    USER = "user"
 
 
 @dataclass
@@ -10,3 +16,4 @@ class Metric:
     calculation_rule: str
     requires_exposure: bool = False
     description: str | None = None
+    aggregation_unit: AggregationUnit = AggregationUnit.EVENT

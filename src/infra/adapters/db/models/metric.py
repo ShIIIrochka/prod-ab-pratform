@@ -3,7 +3,7 @@ from __future__ import annotations
 from tortoise import fields
 from tortoise.models import Model
 
-from src.domain.aggregates.metric import Metric
+from src.domain.aggregates.metric import AggregationUnit, Metric
 
 
 class MetricModel(Model):
@@ -19,6 +19,11 @@ class MetricModel(Model):
         description="Whether metric requires exposure event for attribution",
     )
     description = fields.TextField(null=True, description="Metric description")
+    aggregation_unit = fields.CharField(
+        max_length=10,
+        default=AggregationUnit.EVENT.value,
+        description="Aggregation unit: event or user",
+    )
 
     class Meta:
         table = "metrics"
@@ -30,6 +35,7 @@ class MetricModel(Model):
             calculation_rule=self.calculation_rule,
             requires_exposure=self.requires_exposure,
             description=self.description,
+            aggregation_unit=AggregationUnit(self.aggregation_unit),
         )
 
     @classmethod
@@ -40,4 +46,5 @@ class MetricModel(Model):
             calculation_rule=metric.calculation_rule,
             requires_exposure=metric.requires_exposure,
             description=metric.description,
+            aggregation_unit=metric.aggregation_unit.value,
         )

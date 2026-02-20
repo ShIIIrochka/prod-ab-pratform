@@ -186,9 +186,15 @@ class Experiment(BaseEntity):
             msg = "Winner variant ID is required for ROLLOUT_WINNER outcome"
             raise ValueError(msg)
 
-        # Проверяем, что winner_variant_id существует в вариантах
-        variant_names = [v.name for v in self.variants]
-        if winner_variant_id not in variant_names:
+        # Проверяем, что winner_variant_id совпадает с id или именем варианта
+        # (только если задан — для ROLLOUT_WINNER обязателен, для остальных None)
+        valid_ids = {str(v.id) for v in self.variants}
+        valid_names = {v.name for v in self.variants}
+        if (
+            winner_variant_id is not None
+            and winner_variant_id not in valid_ids
+            and winner_variant_id not in valid_names
+        ):
             msg = (
                 f"Winner variant '{winner_variant_id}' "
                 f"not found in experiment variants"
