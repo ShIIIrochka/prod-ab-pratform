@@ -14,6 +14,6 @@ class EventIdGeneratorPort(ABC):
         decision_id: str,
         subject_id: str,
         timestamp: datetime,
-        props: dict[str, Any],
+        props: dict[str, Any] | None = None,
     ) -> UUID:
         raise NotImplementedError
