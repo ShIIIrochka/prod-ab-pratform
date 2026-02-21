@@ -15,6 +15,13 @@ class GuardrailConfigsRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_by_experiment_ids(
+        self, experiment_ids: list[UUID]
+    ) -> dict[UUID, list[GuardrailConfig]]:
+        """Один запрос: guardrail-конфиги для списка экспериментов."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def replace_for_experiment(
         self, experiment_id: UUID, configs: list[GuardrailConfig]
     ) -> None:
