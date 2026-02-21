@@ -136,7 +136,7 @@ class SendEventsUseCase:
             EventProcessingError — отклонено с причиной,
             None — дубликат.
         """
-        # 1. Проверяем существование типа события
+        # Проверяем существование типа события
         event_type = await self._event_types_repository.get_by_key(
             event_data.event_type_key
         )
@@ -147,7 +147,7 @@ class SendEventsUseCase:
                 reason=f"Event type not found: {event_data.event_type_key}",
             )
 
-        # 2. Валидация обязательных параметров (B4-1, B4-2)
+        # Валидация обязательных параметров
         validation = self._event_validator.validate(
             required_params=event_type.required_params,
             props=event_data.props,
@@ -177,7 +177,7 @@ class SendEventsUseCase:
         # Генерируем детерминированный ID события
         event_id = self._event_id_generator.generate(
             event_type_key=event_data.event_type_key,
-            decision_id=event_data.decision_id,
+            decision_id=str(event_data.decision_id),
             subject_id=subject_id,
             timestamp=event_data.timestamp,
             props=event_data.props,
@@ -191,12 +191,13 @@ class SendEventsUseCase:
 
         normalized_props = validation.normalized_props or event_data.props
         is_exposure = event_data.event_type_key == EXPOSURE_EVENT_TYPE_KEY
+        decision_id_str = str(event_data.decision_id)
 
         if is_exposure:
             event = Event(
                 id=event_id,
                 event_type_key=event_data.event_type_key,
-                decision_id=event_data.decision_id,
+                decision_id=decision_id_str,
                 subject_id=subject_id,
                 timestamp=event_data.timestamp,
                 props=normalized_props,
@@ -204,9 +205,7 @@ class SendEventsUseCase:
             )
             async with self._uow:
                 await self._events_repository.save(event)
-                await self._attribute_pending_events(
-                    event_data.decision_id, decision
-                )
+                await self._attribute_pending_events(decision_id_str, decision)
 
             await self._update_metric_aggregates(event, decision)
             return event
@@ -214,14 +213,14 @@ class SendEventsUseCase:
         if event_type.requires_exposure:
             exposure_events = (
                 await self._events_repository.get_exposure_by_decision_id(
-                    event_data.decision_id
+                    decision_id_str
                 )
             )
             if exposure_events:
                 event = Event(
                     id=event_id,
                     event_type_key=event_data.event_type_key,
-                    decision_id=event_data.decision_id,
+                    decision_id=decision_id_str,
                     subject_id=subject_id,
                     timestamp=event_data.timestamp,
                     props=normalized_props,
@@ -234,7 +233,7 @@ class SendEventsUseCase:
                 event = Event(
                     id=event_id,
                     event_type_key=event_data.event_type_key,
-                    decision_id=event_data.decision_id,
+                    decision_id=decision_id_str,
                     subject_id=subject_id,
                     timestamp=event_data.timestamp,
                     props=normalized_props,
@@ -247,7 +246,7 @@ class SendEventsUseCase:
         event = Event(
             id=event_id,
             event_type_key=event_data.event_type_key,
-            decision_id=event_data.decision_id,
+            decision_id=decision_id_str,
             subject_id=subject_id,
             timestamp=event_data.timestamp,
             props=normalized_props,
@@ -296,7 +295,6 @@ class SendEventsUseCase:
             if not configs:
                 return
 
-            # Batch-load guardrail metrics in a single query
             unique_metric_keys = list({c.metric_key for c in configs})
             metrics_map = await self._metrics_repository.get_by_keys(
                 unique_metric_keys
