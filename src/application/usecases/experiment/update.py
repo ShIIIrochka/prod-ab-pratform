@@ -6,6 +6,9 @@ from src.application.dto.experiment import ExperimentUpdateRequest
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
+from src.application.ports.feature_flags_repository import (
+    FeatureFlagsRepositoryPort,
+)
 from src.application.ports.guardrail_configs_repository import (
     GuardrailConfigsRepositoryPort,
 )
@@ -15,7 +18,9 @@ from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
 from src.domain.exceptions.decision import (
     ExperimentNotFoundError,
+    FeatureFlagNotFoundError,
     VariantNameAlreadyExistsError,
+    VariantValueTypeError,
 )
 from src.domain.value_objects.guardrail_config import GuardrailConfig
 from src.domain.value_objects.targeting_rule import TargetingRule
@@ -25,11 +30,13 @@ class UpdateExperimentUseCase:
     def __init__(
         self,
         experiments_repository: ExperimentsRepositoryPort,
+        feature_flags_repository: FeatureFlagsRepositoryPort,
         guardrail_configs_repository: GuardrailConfigsRepositoryPort,
         metrics_repository: MetricsRepositoryPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._experiments_repository = experiments_repository
+        self._feature_flags_repository = feature_flags_repository
         self._guardrail_configs_repository = guardrail_configs_repository
         self._metrics_repository = metrics_repository
         self._uow = uow
@@ -52,6 +59,16 @@ class UpdateExperimentUseCase:
             experiment.audience_fraction = data.audience_fraction
 
         if data.variants is not None:
+            flag = await self._feature_flags_repository.get_by_key(
+                experiment.flag_key
+            )
+            if not flag:
+                raise FeatureFlagNotFoundError
+            for v in data.variants:
+                try:
+                    flag.validate_variant_value(v.value)
+                except ValueError as exc:
+                    raise VariantValueTypeError(message=str(exc)) from exc
             experiment.variants = [
                 Variant(
                     id=uuid4(),

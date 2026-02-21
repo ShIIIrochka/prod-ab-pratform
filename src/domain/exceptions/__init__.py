@@ -8,6 +8,7 @@ from .decision import (
     FeatureFlagAlreadyExistsError,
     VariantNameAlreadyExistsError,
     DuplicateVariantNamesError,
+    VariantValueTypeError,
 )
 
 

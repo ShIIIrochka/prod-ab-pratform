@@ -26,3 +26,8 @@ class VariantNameAlreadyExistsError(Exception):
 @dataclass
 class DuplicateVariantNamesError(Exception):
     message = "You have duplicated variant names"
+
+
+@dataclass
+class VariantValueTypeError(Exception):
+    message: str = "Variant value does not match feature flag value type"

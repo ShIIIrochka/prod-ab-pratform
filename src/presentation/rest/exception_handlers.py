@@ -11,6 +11,7 @@ from src.domain.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
     VariantNameAlreadyExistsError,
+    VariantValueTypeError,
 )
 from src.domain.exceptions.events import EventTypeNotFoundError
 from src.domain.exceptions.experiment import CannotReviewExperimentError
@@ -92,6 +93,15 @@ def setup_exc_handlers(app: FastAPI) -> None:
     @app.exception_handler(DuplicateVariantNamesError)
     async def duplicate_variant_names_exception_handler(
         request: Request, exc: DuplicateVariantNamesError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": exc.message},
+        )
+
+    @app.exception_handler(VariantValueTypeError)
+    async def variant_value_type_exception_handler(
+        request: Request, exc: VariantValueTypeError
     ) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

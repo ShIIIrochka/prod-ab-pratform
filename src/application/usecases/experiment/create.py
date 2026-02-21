@@ -19,6 +19,7 @@ from src.domain.exceptions import UserNotFoundError
 from src.domain.exceptions.decision import (
     FeatureFlagNotFoundError,
     VariantNameAlreadyExistsError,
+    VariantValueTypeError,
 )
 from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.domain.value_objects.guardrail_config import GuardrailConfig
@@ -65,6 +66,12 @@ class CreateExperimentUseCase:
                     f"Active experiment already exists for flag {data.flag_key}"
                 )
                 raise ValueError(msg)
+
+        for v in data.variants:
+            try:
+                flag.validate_variant_value(v.value)
+            except ValueError as exc:
+                raise VariantValueTypeError(message=str(exc)) from exc
 
         variants = [
             Variant(
