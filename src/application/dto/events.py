@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
 class SendEventRequest(BaseModel):
     event_type_key: str = Field(..., min_length=1, description="Event type key")
-    decision_id: str = Field(
-        ..., min_length=1, description="Decision ID for attribution"
-    )
+    decision_id: UUID = Field(..., description="Decision ID for attribution")
     timestamp: datetime = Field(..., description="Event timestamp")
     props: dict[str, Any] = Field(
         default_factory=dict, description="Event properties"

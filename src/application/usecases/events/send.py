@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 from typing import Any
-from uuid import UUID
 
 from pydantic import ValidationError
 
@@ -164,15 +163,8 @@ class SendEventsUseCase:
             )
 
         # Проверяем существование decision_id
-        try:
-            decision_uuid = UUID(event_data.decision_id)
-        except ValueError:
-            return EventProcessingError(
-                index=idx,
-                event_type_key=event_data.event_type_key,
-                reason=f"Invalid decision_id format: {event_data.decision_id}",
-            )
-        decision = await self._decisions_repository.get_by_id(decision_uuid)
+        decision_id = event_data.decision_id
+        decision = await self._decisions_repository.get_by_id(decision_id)
         if decision is None:
             return EventProcessingError(
                 index=idx,
