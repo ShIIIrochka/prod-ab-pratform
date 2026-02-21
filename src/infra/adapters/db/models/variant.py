@@ -10,7 +10,7 @@ from src.domain.entities.variant import Variant
 
 class VariantModel(Model):
     id = fields.UUIDField(pk=True)
-    name = fields.CharField(max_length=255, unique=True)
+    name = fields.CharField(max_length=255)
     value = fields.JSONField()
     weight = fields.FloatField()
     is_control = fields.BooleanField()
@@ -20,6 +20,7 @@ class VariantModel(Model):
 
     class Meta:
         table = "variants"
+        unique_together = (("experiment", "name"),)
 
     def to_domain(self) -> Variant:
         return Variant(
