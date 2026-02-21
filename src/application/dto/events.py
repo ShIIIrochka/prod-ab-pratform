@@ -18,7 +18,8 @@ class SendEventRequest(BaseModel):
 
 
 class SendEventsRequest(BaseModel):
-    events: list[SendEventRequest] = Field(
+    # Убираем типизацию чтоб пайдентик не райзил 422
+    events: list[Any] = Field(
         ..., min_length=1, max_length=500, description="List of events to send"
     )
 
