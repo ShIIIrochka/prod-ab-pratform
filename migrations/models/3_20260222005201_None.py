@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS "feature_flags" (
 );
 COMMENT ON COLUMN "feature_flags"."value_type" IS 'STRING: string\nNUMBER: number\nBOOL: bool';
 CREATE TABLE IF NOT EXISTS "guardrail_configs" (
-    "id" SERIAL NOT NULL PRIMARY KEY,
+    "id" UUID NOT NULL PRIMARY KEY,
     "experiment_id" VARCHAR(36) NOT NULL,
     "metric_key" VARCHAR(255) NOT NULL,
     "threshold" DOUBLE PRECISION NOT NULL,
@@ -51,14 +51,13 @@ CREATE TABLE IF NOT EXISTS "guardrail_configs" (
 );
 CREATE INDEX IF NOT EXISTS "idx_guardrail_c_experim_2b0401" ON "guardrail_configs" ("experiment_id");
 CREATE INDEX IF NOT EXISTS "idx_guardrail_c_metric__f30d3f" ON "guardrail_configs" ("metric_key");
-COMMENT ON COLUMN "guardrail_configs"."id" IS 'Auto-increment ID';
 COMMENT ON COLUMN "guardrail_configs"."experiment_id" IS 'Experiment UUID';
 COMMENT ON COLUMN "guardrail_configs"."metric_key" IS 'Metric key';
 COMMENT ON COLUMN "guardrail_configs"."threshold" IS 'Threshold value for guardrail trigger';
 COMMENT ON COLUMN "guardrail_configs"."observation_window_minutes" IS 'Observation window in minutes';
 COMMENT ON COLUMN "guardrail_configs"."action" IS 'GuardrailAction enum: pause or rollback_to_control';
 CREATE TABLE IF NOT EXISTS "guardrail_triggers" (
-    "id" SERIAL NOT NULL PRIMARY KEY,
+    "id" UUID NOT NULL PRIMARY KEY,
     "experiment_id" VARCHAR(36) NOT NULL,
     "metric_key" VARCHAR(255),
     "threshold" DOUBLE PRECISION NOT NULL,
@@ -81,14 +80,14 @@ CREATE TABLE IF NOT EXISTS "metrics" (
     "key" VARCHAR(255) NOT NULL PRIMARY KEY,
     "name" VARCHAR(500) NOT NULL,
     "calculation_rule" TEXT NOT NULL,
-    "requires_exposure" BOOL NOT NULL DEFAULT False,
-    "description" TEXT
+    "description" TEXT,
+    "aggregation_unit" VARCHAR(10) NOT NULL DEFAULT 'event'
 );
 COMMENT ON COLUMN "metrics"."key" IS 'Metric key (primary identifier)';
 COMMENT ON COLUMN "metrics"."name" IS 'Human-readable metric name';
 COMMENT ON COLUMN "metrics"."calculation_rule" IS 'Metric calculation rule';
-COMMENT ON COLUMN "metrics"."requires_exposure" IS 'Whether metric requires exposure event for attribution';
 COMMENT ON COLUMN "metrics"."description" IS 'Metric description';
+COMMENT ON COLUMN "metrics"."aggregation_unit" IS 'Aggregation unit: event or user';
 CREATE TABLE IF NOT EXISTS "users" (
     "id" VARCHAR(63) NOT NULL PRIMARY KEY,
     "email" VARCHAR(255) NOT NULL UNIQUE,
@@ -127,11 +126,12 @@ CREATE TABLE IF NOT EXISTS "approvals" (
 CREATE INDEX IF NOT EXISTS "idx_approvals_experim_16842d" ON "approvals" ("experiment_id", "user_id");
 CREATE TABLE IF NOT EXISTS "variants" (
     "id" UUID NOT NULL PRIMARY KEY,
-    "name" VARCHAR(255) NOT NULL UNIQUE,
+    "name" VARCHAR(255) NOT NULL,
     "value" JSONB NOT NULL,
     "weight" DOUBLE PRECISION NOT NULL,
     "is_control" BOOL NOT NULL,
-    "experiment_id" UUID NOT NULL REFERENCES "experiments" ("id") ON DELETE CASCADE
+    "experiment_id" UUID NOT NULL REFERENCES "experiments" ("id") ON DELETE CASCADE,
+    CONSTRAINT "uid_variants_experim_cbfe81" UNIQUE ("experiment_id", "name")
 );
 CREATE TABLE IF NOT EXISTS "decisions" (
     "id" UUID NOT NULL PRIMARY KEY,
@@ -158,58 +158,58 @@ async def downgrade(db: BaseDBAsyncClient) -> str:
 
 
 MODELS_STATE = (
-    "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"
+    "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"
 )
