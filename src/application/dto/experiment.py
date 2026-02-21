@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 from src.domain.value_objects.experiment_completion import (
     ExperimentCompletion,
@@ -35,6 +36,7 @@ class GuardrailConfigInput(BaseModel):
 
 
 class GuardrailConfigResponse(BaseModel):
+    id: UUID | None = Field(None, description="Guardrail config ID")
     metric_key: str = Field(..., description="Metric key")
     threshold: float
     observation_window_minutes: int
@@ -42,6 +44,41 @@ class GuardrailConfigResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class GuardrailTriggerResponse(BaseModel):
+    id: UUID | None = Field(None, description="Guardrail trigger ID")
+    experiment_id: str = Field(..., description="Experiment UUID")
+    metric_key: str = Field(..., description="Metric key")
+    threshold: float
+    observation_window_minutes: int
+    action: GuardrailAction
+    actual_value: float
+    triggered_at: int = Field(
+        ..., description="Trigger timestamp (unix seconds UTC)"
+    )
+
+    @field_serializer("triggered_at")
+    def serialize_triggered_at(self, v: Any, _info: Any) -> int:
+        return v
+
+    @classmethod
+    def from_domain(cls, trigger: Any) -> GuardrailTriggerResponse:
+        from datetime import UTC
+
+        triggered_at = trigger.triggered_at
+        if triggered_at.tzinfo is None:
+            triggered_at = triggered_at.replace(tzinfo=UTC)
+        return cls(
+            id=trigger.id,
+            experiment_id=trigger.experiment_id,
+            metric_key=trigger.metric_key,
+            threshold=trigger.threshold,
+            observation_window_minutes=trigger.observation_window_minutes,
+            action=trigger.action,
+            actual_value=trigger.actual_value,
+            triggered_at=int(triggered_at.timestamp()),
+        )
 
 
 class ExperimentCreateRequest(BaseModel):
@@ -103,8 +140,16 @@ class ExperimentCompletionResponse(BaseModel):
     outcome: ExperimentOutcome = Field(..., description="Experiment outcome")
     winner_variant_id: str | None = Field(None, description="Winner variant ID")
     comment: str = Field(..., description="Completion comment")
-    completed_at: datetime = Field(..., description="Completion timestamp")
+    completed_at: datetime = Field(
+        ..., description="Completion timestamp (unix seconds UTC)"
+    )
     completed_by: str = Field(..., description="ID of user who completed")
+
+    @field_serializer("completed_at")
+    def serialize_completed_at(self, dt: datetime, _info: Any) -> int:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return int(dt.timestamp())
 
     class Config:
         from_attributes = True

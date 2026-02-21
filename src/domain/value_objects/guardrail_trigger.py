@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from uuid import UUID
 
 from src.domain.value_objects.guardrail_config import GuardrailAction
 
@@ -17,6 +18,8 @@ class GuardrailTrigger:
     action: GuardrailAction
     actual_value: float
     triggered_at: datetime
+    # id is None when just constructed; populated when loaded from the repository.
+    id: UUID | None = field(default=None)
 
     def __post_init__(self) -> None:
         if not self.experiment_id:

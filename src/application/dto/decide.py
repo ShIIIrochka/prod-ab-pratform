@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class DecideRequest(BaseModel):
@@ -29,6 +29,12 @@ class DecisionResponse(BaseModel):
     variant_id: UUID | None = None
     variant_name: str | None = None
     timestamp: datetime
+
+    @field_serializer("timestamp")
+    def serialize_timestamp(self, dt: datetime, _info: Any) -> int:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        return int(dt.timestamp())
 
     class Config:
         from_attributes = True

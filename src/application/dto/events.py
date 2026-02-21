@@ -1,19 +1,37 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class SendEventRequest(BaseModel):
     event_type_key: str = Field(..., min_length=1, description="Event type key")
     decision_id: UUID = Field(..., description="Decision ID for attribution")
-    timestamp: datetime = Field(..., description="Event timestamp")
+    timestamp: datetime = Field(
+        ..., description="Event timestamp — unix seconds (UTC)"
+    )
     props: dict[str, Any] = Field(
         default_factory=dict, description="Event properties"
     )
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def parse_timestamp(cls, v: Any) -> datetime:
+        if isinstance(v, int | float):
+            return datetime.fromtimestamp(v, tz=UTC)
+        if isinstance(v, str):
+            dt = datetime.fromisoformat(v)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            return dt
+        if isinstance(v, datetime):
+            if v.tzinfo is None:
+                return v.replace(tzinfo=UTC)
+            return v
+        raise ValueError(f"Cannot parse timestamp: {v!r}")
 
 
 class SendEventsRequest(BaseModel):

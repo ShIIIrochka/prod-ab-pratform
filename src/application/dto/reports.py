@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -20,8 +19,9 @@ class MetricValueResponse(BaseModel):
 
 
 class MetricDynamicsPoint(BaseModel):
-    timestamp: datetime = Field(
-        ..., description="Start of the time bucket (daily granularity)"
+    timestamp: int = Field(
+        ...,
+        description="Start of the time bucket (daily granularity), unix seconds UTC",
     )
     value: float = Field(..., description="Metric value for this time bucket")
 
@@ -45,23 +45,36 @@ class VariantReportResponse(BaseModel):
     )
 
 
+class OverallReportResponse(BaseModel):
+    """Aggregated metrics across all variants combined (calculated on the full event set)."""
+
+    metrics: list[MetricValueResponse] = Field(
+        default_factory=list,
+        description="Metric values across all experiment events",
+    )
+    dynamics: list[MetricDynamics] = Field(
+        default_factory=list,
+        description="Daily dynamics for each metric across all experiment events",
+    )
+
+
 class ExperimentReportResponse(BaseModel):
     experiment_id: UUID
     experiment_name: str
-    from_time: datetime = Field(
-        ..., description="Report window start (inclusive)"
+    # Unix seconds (UTC)
+    from_time: int = Field(
+        ..., description="Report window start (inclusive), unix seconds UTC"
     )
-    to_time: datetime = Field(..., description="Report window end (exclusive)")
+    to_time: int = Field(
+        ..., description="Report window end (exclusive), unix seconds UTC"
+    )
+    overall: OverallReportResponse = Field(
+        default_factory=OverallReportResponse,
+        description="Metrics aggregated across all variants combined",
+    )
     variants: list[VariantReportResponse] = Field(
         default_factory=list,
         description="Per-variant metric reports",
-    )
-    aggregation_unit: str | None = Field(
-        None,
-        description=(
-            "Aggregation unit for the report ('event' or 'user'). "
-            "None if metrics use different units — see per-metric aggregation_unit."
-        ),
     )
     context: dict = Field(
         default_factory=dict,
