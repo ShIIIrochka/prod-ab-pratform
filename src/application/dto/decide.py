@@ -13,10 +13,10 @@ class DecideRequest(BaseModel):
         default_factory=dict,
         description="Subject attributes for targeting",
     )
-    flag_key: str = Field(
+    flag_keys: list[str] = Field(
         ...,
         min_length=1,
-        description="Flag key to resolve",
+        description="List of flag keys to resolve",
     )
 
 
@@ -35,4 +35,4 @@ class DecisionResponse(BaseModel):
 
 
 class DecideResponse(BaseModel):
-    decision: DecisionResponse
+    decisions: dict[str, DecisionResponse]

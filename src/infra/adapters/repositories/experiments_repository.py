@@ -31,6 +31,33 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
             return None
         return await model.to_domain()
 
+    async def get_active_by_flag_keys(
+        self, keys: list[str]
+    ) -> dict[str, Experiment]:
+        if not keys:
+            return {}
+        models = await ExperimentModel.filter(
+            flag_key__in=keys,
+            status=ExperimentStatus.RUNNING.value,
+        ).prefetch_related("variants", "owner")
+        result: dict[str, Experiment] = {}
+        for model in models:
+            domain = await model.to_domain()
+            result[model.flag_key] = domain
+        return result
+
+    async def get_by_ids(self, ids: list[UUID]) -> dict[UUID, Experiment]:
+        if not ids:
+            return {}
+        models = await ExperimentModel.filter(id__in=ids).prefetch_related(
+            "variants", "owner"
+        )
+        result: dict[UUID, Experiment] = {}
+        for model in models:
+            domain = await model.to_domain()
+            result[domain.id] = domain
+        return result
+
     async def save(self, experiment: Experiment) -> None:
         existing_model = await ExperimentModel.get_or_none(id=experiment.id)
         if existing_model:

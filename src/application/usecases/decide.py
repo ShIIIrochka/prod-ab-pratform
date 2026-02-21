@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from uuid import UUID
 
-from src.application.dto.decide import (
-    DecideRequest,
-)
+from src.application.dto.decide import DecideRequest
 from src.application.ports.decisions_repository import DecisionsRepositoryPort
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
@@ -51,106 +50,130 @@ class DecideUseCase:
         self._cooldown_experiment_probability = cooldown_experiment_probability
         self._rotation_period_days = rotation_period_days
 
-    async def execute(self, data: DecideRequest) -> Decision:
-        flag = await self._feature_flags_repository.get_by_key(data.flag_key)
-
-        if flag is None:
-            raise FeatureFlagNotFoundError
-
+    async def execute(self, data: DecideRequest) -> dict[str, Decision]:
         user = await self._user_repository.get_by_id(data.subject_id)
         if not user:
             raise UserNotFoundError
 
-        experiment = await self._experiments_repository.get_active_by_flag_key(
-            data.flag_key
+        flags_map = await self._feature_flags_repository.get_by_keys(
+            data.flag_keys
+        )
+        missing = [k for k in data.flag_keys if k not in flags_map]
+        if missing:
+            raise FeatureFlagNotFoundError
+
+        experiments_map = (
+            await self._experiments_repository.get_active_by_flag_keys(
+                data.flag_keys
+            )
         )
 
-        decision_result = compute_decision(
-            experiment=experiment,
-            subject_id=str(data.subject_id),
-            attributes=data.attributes,
-            rotation_period_days=self._rotation_period_days,
-        )
-
-        if decision_result.applied and experiment:
-            active_decisions = await self._decisions_repository.get_active_experiments_by_subject(
+        since = datetime.utcnow() - timedelta(days=self._cooldown_period_days)
+        active_decisions = (
+            await self._decisions_repository.get_active_experiments_by_subject(
                 data.subject_id
             )
-            active_experiments = []
-            for decision in active_decisions:
-                if decision.experiment_id:
-                    exp = await self._experiments_repository.get_by_id(
-                        decision.experiment_id
-                    )
-                    if exp:
-                        active_experiments.append(exp)
-
-            since = datetime.utcnow() - timedelta(
-                days=self._cooldown_period_days
+        )
+        recent_decisions = (
+            await self._decisions_repository.get_recent_by_subject(
+                data.subject_id, since
             )
-            recent_decisions = (
-                await self._decisions_repository.get_recent_by_subject(
-                    data.subject_id, since
-                )
-            )
+        )
 
-            allowed, reason = check_participation_allowed(
-                subject_id=str(data.subject_id),
+        active_exp_ids: list[UUID] = [
+            d.experiment_id
+            for d in active_decisions
+            if d.experiment_id is not None
+        ]
+        active_experiments_by_id = (
+            await self._experiments_repository.get_by_ids(active_exp_ids)
+        )
+        active_experiments = list(active_experiments_by_id.values())
+
+        results: dict[str, DecisionResult] = {}
+        for flag_key in data.flag_keys:
+            experiment = experiments_map.get(flag_key)
+            decision_result = compute_decision(
                 experiment=experiment,
-                active_experiments=active_experiments,
-                recent_decisions=recent_decisions,
-                current_time=datetime.utcnow(),
-                max_concurrent_experiments=self._max_concurrent_experiments,
-                cooldown_period_days=self._cooldown_period_days,
-                experiments_before_cooldown=self._experiments_before_cooldown,
-                cooldown_experiment_probability=self._cooldown_experiment_probability,
+                subject_id=str(data.subject_id),
+                attributes=data.attributes,
+                rotation_period_days=self._rotation_period_days,
             )
 
-            if not allowed:
-                decision_result = DecisionResult(
-                    applied=False,
-                    value="",
-                    variant_id=None,
-                    variant_name=None,
+            if decision_result.applied and experiment:
+                allowed, _ = check_participation_allowed(
+                    subject_id=str(data.subject_id),
+                    experiment=experiment,
+                    active_experiments=active_experiments,
+                    recent_decisions=recent_decisions,
+                    current_time=datetime.utcnow(),
+                    max_concurrent_experiments=self._max_concurrent_experiments,
+                    cooldown_period_days=self._cooldown_period_days,
+                    experiments_before_cooldown=self._experiments_before_cooldown,
+                    cooldown_experiment_probability=self._cooldown_experiment_probability,
                 )
+                if not allowed:
+                    decision_result = DecisionResult(
+                        applied=False,
+                        value="",
+                        variant_id=None,
+                        variant_name=None,
+                    )
 
-        if decision_result.applied and experiment:
-            value = decision_result.value
-            experiment_id = experiment.id
-            variant_id = decision_result.variant_id
-            variant_name = decision_result.variant_name
-            experiment_version = experiment.version
-        else:
-            value = flag.default_value
-            experiment_id = None
-            variant_id = None
-            variant_name = None
-            experiment_version = None
+            results[flag_key] = decision_result
 
-        decision_id = generate_deterministic_decision_id(
-            subject_id=data.subject_id,
-            flag_key=data.flag_key,
-            experiment_id=experiment_id,
-            variant_id=str(variant_name),
-        )
+        decisions: dict[str, Decision] = {}
+        new_decisions: list[Decision] = []
+        decision_ids: list[UUID] = []
 
-        existing_decision = await self._decisions_repository.get_by_id(
-            decision_id
-        )
+        for flag_key in data.flag_keys:
+            decision_result = results[flag_key]
+            flag = flags_map[flag_key]
+            experiment = experiments_map.get(flag_key)
 
-        if existing_decision:
-            decision = existing_decision
-        else:
-            decision = Decision(
+            if decision_result.applied and experiment:
+                value = decision_result.value
+                experiment_id = experiment.id
+                variant_id = decision_result.variant_id
+                variant_name = decision_result.variant_name
+                experiment_version = experiment.version
+            else:
+                value = flag.default_value
+                experiment_id = None
+                variant_id = None
+                variant_name = None
+                experiment_version = None
+
+            decision_id = generate_deterministic_decision_id(
+                subject_id=data.subject_id,
+                flag_key=flag_key,
+                experiment_id=experiment_id,
+                variant_id=str(variant_name),
+            )
+            decision_ids.append(decision_id)
+            decisions[flag_key] = Decision(
                 id=decision_id,
                 subject_id=data.subject_id,
-                flag_key=data.flag_key,
+                flag_key=flag_key,
                 value=value,
                 experiment_id=experiment_id,
                 variant_id=variant_id,
                 variant_name=variant_name,
                 experiment_version=experiment_version,
             )
+
+        existing_decisions = await self._decisions_repository.get_by_ids(
+            decision_ids
+        )
+        for flag_key, decision in decisions.items():
+            if decision.id in existing_decisions:
+                decisions[flag_key] = existing_decisions[decision.id]
+            else:
+                new_decisions.append(decision)
+
+        # 8. Save new decisions in a single transaction
+        if new_decisions:
             async with self._uow:
-                await self._decisions_repository.save(decision)
-        return decision
+                await self._decisions_repository.save_many(new_decisions)
+
+        return decisions

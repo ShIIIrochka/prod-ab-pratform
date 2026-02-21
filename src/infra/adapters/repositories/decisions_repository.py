@@ -18,11 +18,34 @@ class DecisionsRepository(DecisionsRepositoryPort):
         else:
             await model.save()
 
+    async def save_many(self, decisions: list[Decision]) -> None:
+        if not decisions:
+            return
+        ids = [d.id for d in decisions]
+        existing_ids = set(
+            await DecisionModel.filter(id__in=ids).values_list("id", flat=True)
+        )
+        new_decisions = [d for d in decisions if d.id not in existing_ids]
+        if new_decisions:
+            await DecisionModel.bulk_create(
+                [DecisionModel.from_domain(d) for d in new_decisions]
+            )
+
     async def get_by_id(self, decision_id: UUID) -> Decision | None:
         model = await DecisionModel.get_or_none(id=decision_id)
         if model is None:
             return None
         return await model.to_domain()
+
+    async def get_by_ids(self, ids: list[UUID]) -> dict[UUID, Decision]:
+        if not ids:
+            return {}
+        models = await DecisionModel.filter(id__in=ids)
+        result: dict[UUID, Decision] = {}
+        for model in models:
+            domain = await model.to_domain()
+            result[domain.id] = domain
+        return result
 
     async def get_active_experiments_by_subject(
         self, subject_id: str

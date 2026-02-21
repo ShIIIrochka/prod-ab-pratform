@@ -20,5 +20,10 @@ async def decide(
     container: Container,
 ) -> DecideResponse:
     use_case = container.resolve(DecideUseCase)
-    response = await use_case.execute(data)
-    return DecideResponse(decision=DecisionResponse.model_validate(response))
+    decisions_map = await use_case.execute(data)
+    return DecideResponse(
+        decisions={
+            flag_key: DecisionResponse.model_validate(decision)
+            for flag_key, decision in decisions_map.items()
+        }
+    )

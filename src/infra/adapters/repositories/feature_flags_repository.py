@@ -14,6 +14,12 @@ class FeatureFlagsRepository(FeatureFlagsRepositoryPort):
             return None
         return model.to_domain()
 
+    async def get_by_keys(self, keys: list[str]) -> dict[str, FeatureFlag]:
+        if not keys:
+            return {}
+        models = await FeatureFlagModel.filter(key__in=keys)
+        return {m.key: m.to_domain() for m in models}
+
     async def save(self, flag: FeatureFlag) -> None:
         model = FeatureFlagModel.from_domain(flag)
         await model.save()

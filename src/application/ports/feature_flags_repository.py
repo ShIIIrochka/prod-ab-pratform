@@ -11,6 +11,10 @@ class FeatureFlagsRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_by_keys(self, keys: list[str]) -> dict[str, FeatureFlag]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def save(self, flag: FeatureFlag) -> None:
         raise NotImplementedError
 

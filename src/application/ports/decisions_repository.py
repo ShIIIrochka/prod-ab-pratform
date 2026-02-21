@@ -13,7 +13,15 @@ class DecisionsRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def save_many(self, decisions: list[Decision]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_by_id(self, decision_id: UUID) -> Decision | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_by_ids(self, ids: list[UUID]) -> dict[UUID, Decision]:
         raise NotImplementedError
 
     @abstractmethod
