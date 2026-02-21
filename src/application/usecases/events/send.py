@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import logging
 
+from typing import Any
 from uuid import UUID
 
-from src.application.dto.events import SendEventsRequest
+from pydantic import ValidationError
+
+from src.application.dto.events import SendEventRequest, SendEventsRequest
 from src.application.ports.decisions_repository import DecisionsRepositoryPort
 from src.application.ports.event_id_generator import EventIdGeneratorPort
 from src.application.ports.event_types_repository import (
@@ -33,9 +36,6 @@ from src.domain.value_objects.event_processing import (
 logger = logging.getLogger(__name__)
 
 EXPOSURE_EVENT_TYPE_KEY = "exposure"
-
-# TTL для Redis-агрегатов: максимальное окно наблюдения (1 час запаса)
-_METRIC_AGGREGATOR_TTL_SECONDS = 3600
 
 
 class SendEventsUseCase:
@@ -69,8 +69,14 @@ class SendEventsUseCase:
         rejected = 0
         errors: list[EventProcessingError] = []
 
-        for idx, event_data in enumerate(data.events):
-            result = await self._process_single_event(idx, event_data)
+        for idx, raw in enumerate(data.events):
+            parsed = self._parse_event(idx, raw)
+            if isinstance(parsed, EventProcessingError):
+                rejected += 1
+                errors.append(parsed)
+                continue
+
+            result = await self._process_single_event(idx, parsed)
             if result is None:
                 duplicates += 1
             elif isinstance(result, EventProcessingError):
@@ -85,6 +91,41 @@ class SendEventsUseCase:
             rejected=rejected,
             errors=errors,
         )
+
+    @staticmethod
+    def _parse_event(
+        idx: int, raw: Any
+    ) -> SendEventRequest | EventProcessingError:
+        """Попытаться разобрать один элемент батча в SendEventRequest.
+
+        Если raw не является dict или не проходит Pydantic-валидацию,
+        возвращает EventProcessingError с описанием причины вместо исключения,
+        чтобы батч продолжил обработку остальных элементов.
+        """
+        try:
+            return SendEventRequest.model_validate(raw)
+        except ValidationError as exc:
+            event_type_key = ""
+            if isinstance(raw, dict):
+                event_type_key = str(raw.get("event_type_key", ""))
+            reasons = "; ".join(
+                f"{'.'.join(str(loc) for loc in err['loc'])}: {err['msg']}"
+                for err in exc.errors()
+            )
+            return EventProcessingError(
+                index=idx,
+                event_type_key=event_type_key,
+                reason=reasons,
+            )
+        except Exception as exc:  # noqa: BLE001
+            event_type_key = ""
+            if isinstance(raw, dict):
+                event_type_key = str(raw.get("event_type_key", ""))
+            return EventProcessingError(
+                index=idx,
+                event_type_key=event_type_key,
+                reason=str(exc),
+            )
 
     async def _process_single_event(
         self, idx: int, event_data
