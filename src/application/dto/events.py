@@ -11,7 +11,6 @@ class SendEventRequest(BaseModel):
     decision_id: str = Field(
         ..., min_length=1, description="Decision ID for attribution"
     )
-    subject_id: str = Field(..., min_length=1, description="Subject identifier")
     timestamp: datetime = Field(..., description="Event timestamp")
     props: dict[str, Any] = Field(
         default_factory=dict, description="Event properties"

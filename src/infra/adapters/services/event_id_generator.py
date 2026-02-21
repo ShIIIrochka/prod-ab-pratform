@@ -17,7 +17,7 @@ class EventIdGenerator(EventIdGeneratorPort):
         decision_id: str,
         subject_id: str,
         timestamp: datetime,
-        props: dict[str, Any],
+        props: dict[str, Any] | None = None,
     ) -> UUID:
         # Сортируем props для детерминизма
         sorted_props = json.dumps(props, sort_keys=True)

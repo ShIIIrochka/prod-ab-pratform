@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 
+from uuid import UUID
+
 from src.application.dto.events import SendEventsRequest
 from src.application.ports.decisions_repository import DecisionsRepositoryPort
 from src.application.ports.event_id_generator import EventIdGeneratorPort
@@ -120,10 +122,16 @@ class SendEventsUseCase:
                 reason=reasons,
             )
 
-        # 3. Проверяем существование decision_id (B4-4)
-        decision = await self._decisions_repository.get_by_id(
-            event_data.decision_id
-        )
+        # Проверяем существование decision_id
+        try:
+            decision_uuid = UUID(event_data.decision_id)
+        except ValueError:
+            return EventProcessingError(
+                index=idx,
+                event_type_key=event_data.event_type_key,
+                reason=f"Invalid decision_id format: {event_data.decision_id}",
+            )
+        decision = await self._decisions_repository.get_by_id(decision_uuid)
         if decision is None:
             return EventProcessingError(
                 index=idx,
@@ -131,16 +139,18 @@ class SendEventsUseCase:
                 reason=f"Decision not found: {event_data.decision_id}",
             )
 
-        # 4. Генерируем детерминированный ID события
+        subject_id = decision.subject_id
+
+        # Генерируем детерминированный ID события
         event_id = self._event_id_generator.generate(
             event_type_key=event_data.event_type_key,
             decision_id=event_data.decision_id,
-            subject_id=event_data.subject_id,
+            subject_id=subject_id,
             timestamp=event_data.timestamp,
             props=event_data.props,
         )
 
-        # 5. Дедупликация (B4-3)
+        # Дедупликация
         if await self._events_repository.exists(event_id):
             return None
         if await self._pending_store.exists(str(event_id)):
@@ -154,7 +164,7 @@ class SendEventsUseCase:
                 id=event_id,
                 event_type_key=event_data.event_type_key,
                 decision_id=event_data.decision_id,
-                subject_id=event_data.subject_id,
+                subject_id=subject_id,
                 timestamp=event_data.timestamp,
                 props=normalized_props,
                 attribution_status=AttributionStatus.ATTRIBUTED,
@@ -179,7 +189,7 @@ class SendEventsUseCase:
                     id=event_id,
                     event_type_key=event_data.event_type_key,
                     decision_id=event_data.decision_id,
-                    subject_id=event_data.subject_id,
+                    subject_id=subject_id,
                     timestamp=event_data.timestamp,
                     props=normalized_props,
                     attribution_status=AttributionStatus.ATTRIBUTED,
@@ -192,7 +202,7 @@ class SendEventsUseCase:
                     id=event_id,
                     event_type_key=event_data.event_type_key,
                     decision_id=event_data.decision_id,
-                    subject_id=event_data.subject_id,
+                    subject_id=subject_id,
                     timestamp=event_data.timestamp,
                     props=normalized_props,
                     attribution_status=AttributionStatus.PENDING,
@@ -200,12 +210,12 @@ class SendEventsUseCase:
                 await self._pending_store.put(event)
             return event
 
-        # Не требует exposure → сразу в БД со статусом ATTRIBUTED
+        # Не требует exposure -> сразу в БД со статусом ATTRIBUTED
         event = Event(
             id=event_id,
             event_type_key=event_data.event_type_key,
             decision_id=event_data.decision_id,
-            subject_id=event_data.subject_id,
+            subject_id=subject_id,
             timestamp=event_data.timestamp,
             props=normalized_props,
             attribution_status=AttributionStatus.ATTRIBUTED,
