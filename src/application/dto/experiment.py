@@ -142,6 +142,10 @@ class ExperimentResponse(BaseModel):
     metric_keys: list[str] = Field(
         default_factory=list, description="Additional metric keys"
     )
+    rollback_to_control_active: bool = Field(
+        default=False,
+        description="Whether guardrail rollback-to-control mode is active",
+    )
     guardrails: list[GuardrailConfigResponse] = Field(
         default_factory=list,
         description="Guardrail rules for this experiment",
