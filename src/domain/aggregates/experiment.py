@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from uuid import UUID
 
 from src.domain.aggregates import BaseEntity
 from src.domain.aggregates.user import User
@@ -172,7 +171,7 @@ class Experiment(BaseEntity):
         self,
         outcome: ExperimentOutcome,
         comment: str,
-        completed_by: UUID,
+        completed_by: str,
         winner_variant_id: str | None,
     ) -> None:
         if self.status not in (

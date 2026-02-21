@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
 
 from tortoise import fields
 from tortoise.fields import OnDelete, ReverseRelation
@@ -62,7 +61,7 @@ class ExperimentModel(Model):
                 completed_at=datetime.fromisoformat(
                     self.completion["completed_at"]
                 ),
-                completed_by=UUID(self.completion["completed_by"]),
+                completed_by=self.completion["completed_by"],
             )
 
         variants_list = await self.variants.all()

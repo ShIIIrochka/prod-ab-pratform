@@ -23,7 +23,7 @@ class CompleteExperimentUseCase:
     async def execute(
         self,
         experiment_id: UUID,
-        completed_by: UUID,
+        completed_by: str,
         data: CompleteExperimentRequest,
     ) -> Experiment:
         experiment = await self._experiments_repository.get_by_id(experiment_id)

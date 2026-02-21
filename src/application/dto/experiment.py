@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from src.domain.value_objects.experiment_completion import ExperimentOutcome
+from src.domain.value_objects.experiment_completion import (
+    ExperimentCompletion,
+    ExperimentOutcome,
+)
 from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.domain.value_objects.guardrail_config import GuardrailAction
 from src.domain.value_objects.targeting_rule import TargetingRule
@@ -95,6 +99,29 @@ class VariantResponse(BaseModel):
         from_attributes = True
 
 
+class ExperimentCompletionResponse(BaseModel):
+    outcome: ExperimentOutcome = Field(..., description="Experiment outcome")
+    winner_variant_id: str | None = Field(None, description="Winner variant ID")
+    comment: str = Field(..., description="Completion comment")
+    completed_at: datetime = Field(..., description="Completion timestamp")
+    completed_by: str = Field(..., description="ID of user who completed")
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_domain(
+        cls, completion: ExperimentCompletion
+    ) -> ExperimentCompletionResponse:
+        return cls(
+            outcome=completion.outcome,
+            winner_variant_id=completion.winner_variant_id,
+            comment=completion.comment,
+            completed_at=completion.completed_at,
+            completed_by=completion.completed_by,
+        )
+
+
 class ExperimentResponse(BaseModel):
     id: UUID = Field(..., description="Experiment ID")
     flag_key: str = Field(..., description="Feature flag key")
@@ -118,6 +145,9 @@ class ExperimentResponse(BaseModel):
     guardrails: list[GuardrailConfigResponse] = Field(
         default_factory=list,
         description="Guardrail rules for this experiment",
+    )
+    completion: ExperimentCompletionResponse | None = Field(
+        None, description="Completion details if experiment is completed"
     )
 
     class Config:

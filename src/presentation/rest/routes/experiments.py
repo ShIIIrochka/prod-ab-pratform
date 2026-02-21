@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Security, status
 from src.application.dto.experiment import (
     ApproveExperimentRequest,
     CompleteExperimentRequest,
+    ExperimentCompletionResponse,
     ExperimentCreateRequest,
     ExperimentListResponse,
     ExperimentResponse,
@@ -73,6 +74,10 @@ async def _build_experiment_response(
 
     response = ExperimentResponse.model_validate(experiment)
     response.guardrails = guardrail_responses
+    if experiment.completion:
+        response.completion = ExperimentCompletionResponse.from_domain(
+            experiment.completion
+        )
     return response
 
 
@@ -102,9 +107,32 @@ async def list_experiments(
 ) -> ExperimentListResponse:
     use_case = container.resolve(ListExperimentsUseCase)
     experiments = await use_case.execute(flag_key=flag_key, status=status)
-    return ExperimentListResponse(
-        experiments=[ExperimentResponse.model_validate(e) for e in experiments]
+
+    # Batch-load guardrails in a single query to avoid N+1
+    guardrail_repo = container.resolve(GuardrailConfigsRepositoryPort)
+    guardrails_by_exp = await guardrail_repo.get_by_experiment_ids(
+        [e.id for e in experiments]
     )
+
+    result: list[ExperimentResponse] = []
+    for exp in experiments:
+        response = ExperimentResponse.model_validate(exp)
+        response.guardrails = [
+            GuardrailConfigResponse(
+                metric_key=g.metric_key,
+                threshold=g.threshold,
+                observation_window_minutes=g.observation_window_minutes,
+                action=g.action,
+            )
+            for g in guardrails_by_exp.get(exp.id, [])
+        ]
+        if exp.completion:
+            response.completion = ExperimentCompletionResponse.from_domain(
+                exp.completion
+            )
+        result.append(response)
+
+    return ExperimentListResponse(experiments=result)
 
 
 @router.get("/{experiment_id}", response_model=ExperimentResponse)
@@ -234,9 +262,7 @@ async def complete_experiment(
     ],
 ) -> ExperimentResponse:
     use_case = container.resolve(CompleteExperimentUseCase)
-    experiment = await use_case.execute(
-        experiment_id, UUID(current_user.id), data
-    )
+    experiment = await use_case.execute(experiment_id, current_user.id, data)
     return await _build_experiment_response(experiment, container)
 
 

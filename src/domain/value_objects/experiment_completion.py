@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from uuid import UUID
 
 
 class ExperimentOutcome(StrEnum):
@@ -18,7 +17,7 @@ class ExperimentCompletion:
     winner_variant_id: str | None
     comment: str
     completed_at: datetime
-    completed_by: UUID
+    completed_by: str
 
     def __post_init__(self) -> None:
         if (
