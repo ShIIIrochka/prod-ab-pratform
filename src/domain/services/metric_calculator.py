@@ -5,17 +5,17 @@ import statistics
 from collections import defaultdict
 from typing import Any
 
-from src.domain.aggregates.event import AttributionStatus, Event
+from src.domain.aggregates.event import Event
 from src.domain.aggregates.metric import AggregationUnit, Metric
 from src.domain.services.calculation_rule_parser import parse_calculation_rule
 
 
-def _filter_attributed(events: list[Event]) -> list[Event]:
-    return [
-        e
-        for e in events
-        if e.attribution_status == AttributionStatus.ATTRIBUTED
-    ]
+# def _filter_attributed(events: list[Event]) -> list[Event]:
+#     return [
+#         e
+#         for e in events
+#         if e.attribution_status == AttributionStatus.ATTRIBUTED
+#     ]
 
 
 def _filter_by_type(events: list[Event], event_type_key: str) -> list[Event]:
@@ -37,11 +37,6 @@ def _extract_numeric_property(
 
 
 def _deduplicate_by_user(events: list[Event]) -> list[Event]:
-    """Keep only the first event per (subject_id, event_type_key) pair.
-
-    Used for user-level aggregation so that each user contributes at most
-    once per event type to the metric calculation.
-    """
     seen: set[tuple[str, str]] = set()
     result: list[Event] = []
     for e in events:
@@ -53,7 +48,6 @@ def _deduplicate_by_user(events: list[Event]) -> list[Event]:
 
 
 def _group_by_user(events: list[Event]) -> dict[str, list[Event]]:
-    """Group events by subject_id."""
     groups: dict[str, list[Event]] = defaultdict(list)
     for e in events:
         groups[e.subject_id].append(e)
@@ -143,7 +137,6 @@ def _evaluate_rule_user(rule: dict[str, Any], events: list[Event]) -> float:
             return 0.0
         filtered = _filter_by_type(events, event_type_key)
         return float(len({e.subject_id for e in filtered}))
-
     if rule_type == "SUM":
         event_type_key = rule.get("event_type_key")
         prop = rule.get("property")
@@ -221,13 +214,12 @@ def calculate_metric(metric: Metric, events: list[Event]) -> float:
         '{"type": "PERCENTILE", "event_type_key": "latency",
           "property": "duration_ms", "percentile": 95}'
     """
-    attributed_events = _filter_attributed(events)
+    # attributed_events = _filter_attributed(events)
 
     rule = parse_calculation_rule(metric.calculation_rule)
     if rule is None:
         return 0.0
 
     if metric.aggregation_unit == AggregationUnit.USER:
-        return _evaluate_rule_user(rule, attributed_events)
-
-    return _evaluate_rule(rule, attributed_events)
+        return _evaluate_rule_user(rule, events)
+    return _evaluate_rule(rule, events)

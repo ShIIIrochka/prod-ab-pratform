@@ -29,11 +29,8 @@ def _resolve_type(type_str: str) -> type | None:
 
 
 class PydanticEventValidator(EventValidatorPort):
-    """Реализация EventValidatorPort через Pydantic.
-
-    Динамически строит Pydantic-модель по схеме required_params типа события.
+    """Динамически строит Pydantic-модель по схеме required_params типа события.
     Кэширует модели по схеме для производительности.
-    Use case ничего не знает о Pydantic — детали инкапсулированы здесь.
     """
 
     def __init__(self) -> None:

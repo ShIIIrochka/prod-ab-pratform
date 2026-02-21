@@ -171,7 +171,6 @@ class DecideUseCase:
             else:
                 new_decisions.append(decision)
 
-        # 8. Save new decisions in a single transaction
         if new_decisions:
             async with self._uow:
                 await self._decisions_repository.save_many(new_decisions)

@@ -8,7 +8,7 @@ from src.domain.value_objects.guardrail_trigger import GuardrailTrigger
 
 
 class GuardrailTriggerModel(Model):
-    id = fields.IntField(pk=True)
+    id = fields.UUIDField(pk=True, generate=True)
     experiment_id = fields.CharField(
         max_length=36, index=True, description="Experiment UUID"
     )
@@ -40,6 +40,7 @@ class GuardrailTriggerModel(Model):
 
     def to_domain(self) -> GuardrailTrigger:
         return GuardrailTrigger(
+            id=self.id,
             experiment_id=self.experiment_id,
             metric_key=self.metric_key or "",
             threshold=self.threshold,

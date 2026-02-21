@@ -10,6 +10,7 @@ from .decision import (
     DuplicateVariantNamesError,
     VariantValueTypeError,
 )
+from .events import EventTypeAlreadyExistsError
 
 
 @dataclass

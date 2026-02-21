@@ -14,6 +14,7 @@ from src.application.dto.experiment import (
     ExperimentResponse,
     ExperimentUpdateRequest,
     GuardrailConfigResponse,
+    GuardrailTriggerResponse,
     RejectExperimentRequest,
     RequestChangesRequest,
 )
@@ -64,6 +65,7 @@ async def _build_experiment_response(
 
     guardrail_responses = [
         GuardrailConfigResponse(
+            id=g.id,
             metric_key=g.metric_key,
             threshold=g.threshold,
             observation_window_minutes=g.observation_window_minutes,
@@ -108,7 +110,6 @@ async def list_experiments(
     use_case = container.resolve(ListExperimentsUseCase)
     experiments = await use_case.execute(flag_key=flag_key, status=status)
 
-    # Batch-load guardrails in a single query to avoid N+1
     guardrail_repo = container.resolve(GuardrailConfigsRepositoryPort)
     guardrails_by_exp = await guardrail_repo.get_by_experiment_ids(
         [e.id for e in experiments]
@@ -119,6 +120,7 @@ async def list_experiments(
         response = ExperimentResponse.model_validate(exp)
         response.guardrails = [
             GuardrailConfigResponse(
+                id=g.id,
                 metric_key=g.metric_key,
                 threshold=g.threshold,
                 observation_window_minutes=g.observation_window_minutes,
@@ -281,23 +283,15 @@ async def archive_experiment(
     return await _build_experiment_response(experiment, container)
 
 
-@router.get("/{experiment_id}/guardrail-triggers")
+@router.get(
+    "/{experiment_id}/guardrail-triggers",
+    response_model=list[GuardrailTriggerResponse],
+)
 async def get_guardrail_triggers(
     experiment_id: UUID,
     container: Container,
-) -> list[dict]:
+) -> list[GuardrailTriggerResponse]:
     """История срабатываний guardrails для эксперимента (аудит)."""
     repo = container.resolve(GuardrailTriggersRepositoryPort)
     triggers = await repo.get_by_experiment_id(experiment_id)
-    return [
-        {
-            "experiment_id": t.experiment_id,
-            "metric_key": t.metric_key,
-            "threshold": t.threshold,
-            "observation_window_minutes": t.observation_window_minutes,
-            "action": t.action,
-            "actual_value": t.actual_value,
-            "triggered_at": t.triggered_at.isoformat(),
-        }
-        for t in triggers
-    ]
+    return [GuardrailTriggerResponse.from_domain(t) for t in triggers]

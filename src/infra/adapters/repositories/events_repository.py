@@ -53,16 +53,20 @@ class EventsRepository(EventsRepositoryPort):
         to_time: datetime,
         attribution_status: AttributionStatus | None = None,
     ) -> list[Event]:
-        # Получаем decision_ids для этого эксперимента
+        # Use UUID object directly — string comparison fails for UUID FK in PostgreSQL
         decision_ids = await DecisionModel.filter(
-            experiment_id=str(experiment_id)
+            experiment_id=experiment_id
         ).values_list("id", flat=True)
 
         if not decision_ids:
             return []
 
+        # decision_ids are UUID objects from UUIDField pk; convert to strings for
+        # EventModel.decision_id (CharField)
+        decision_id_strs = [str(d) for d in decision_ids]
+
         query = EventModel.filter(
-            decision_id__in=[str(d) for d in decision_ids],
+            decision_id__in=decision_id_strs,
             timestamp__gte=from_time,
             timestamp__lt=to_time,
         )
@@ -94,34 +98,26 @@ class EventsRepository(EventsRepositoryPort):
         to_time: datetime,
         attribution_status: AttributionStatus | None = None,
     ) -> dict[str, list[Event]]:
-        event_query = EventModel.filter(
-            timestamp__gte=from_time,
-            timestamp__lt=to_time,
-        )
-        if attribution_status is not None:
-            event_query = event_query.filter(
-                attribution_status=attribution_status.value
-            )
-        candidate_decision_ids = await event_query.distinct().values_list(
-            "decision_id", flat=True
-        )
-        if not candidate_decision_ids:
-            return {}
-
+        # Step 1: load all decisions for this experiment (UUID FK — pass UUID directly)
         decisions = await DecisionModel.filter(
-            id__in=candidate_decision_ids,
-            experiment_id=str(experiment_id),
+            experiment_id=experiment_id
         ).prefetch_related("variant")
 
+        if not decisions:
+            return {}
+
+        # Build decision_id (string) → variant_name mapping
         decision_to_variant: dict[str, str] = {}
         for decision in decisions:
-            if decision.variant_id is not None:  # type: ignore
-                variant = await decision.variant  # type: ignore
-                decision_to_variant[str(decision.id)] = variant.name
+            if decision.variant_id is not None:  # type: ignore[attr-defined]
+                variant = await decision.variant  # type: ignore[attr-defined]
+                if variant is not None:
+                    decision_to_variant[str(decision.id)] = variant.name
 
         if not decision_to_variant:
             return {}
 
+        # Step 2: load events for those decisions in the time window
         event_query = EventModel.filter(
             decision_id__in=list(decision_to_variant.keys()),
             timestamp__gte=from_time,

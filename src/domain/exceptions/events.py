@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 
 class EventTypeNotFoundError(Exception):
     """Тип события не найден."""
@@ -30,3 +32,8 @@ class ExposureRequiredError(Exception):
     def __init__(self, event_id: str) -> None:
         self.event_id = event_id
         super().__init__(f"Exposure required for event: {event_id}")
+
+
+@dataclass
+class EventTypeAlreadyExistsError(Exception):
+    message: str = "Event type with this key already exists"

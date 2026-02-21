@@ -9,6 +9,7 @@ from src.application.dto.reports import (
     MetricDynamics,
     MetricDynamicsPoint,
     MetricValueResponse,
+    OverallReportResponse,
     VariantReportResponse,
 )
 from src.application.ports.events_repository import EventsRepositoryPort
@@ -21,6 +22,12 @@ from src.domain.aggregates.experiment import Experiment
 from src.domain.aggregates.metric import Metric
 from src.domain.exceptions.decision import ExperimentNotFoundError
 from src.domain.services.metric_calculator import calculate_metric
+
+
+def _to_unix(dt: datetime) -> int:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return int(dt.timestamp())
 
 
 class GetExperimentReportUseCase:
@@ -62,7 +69,7 @@ class GetExperimentReportUseCase:
             str, Metric
         ] = await self._metrics_repository.get_by_keys(metric_keys)
 
-        # Загружаем события эксперимента, сгруппированные по варианту
+        # Load experiment events grouped by variant (single batched query)
         events_by_variant = (
             await self._events_repository.get_by_experiment_grouped_by_variant(
                 experiment_id=experiment_id,
@@ -72,39 +79,18 @@ class GetExperimentReportUseCase:
             )
         )
 
-        # Строим отчёт по каждому варианту эксперимента
+        # Build per-variant reports
         variant_reports: list[VariantReportResponse] = []
         for variant in experiment.variants:
             events = events_by_variant.get(variant.name, [])
-
-            metric_values: list[MetricValueResponse] = []
-            dynamics_list: list[MetricDynamics] = []
-
-            for mk in metric_keys:
-                metric = metrics_map.get(mk)
-                if metric is None:
-                    continue
-
-                value = calculate_metric(metric, events)
-                metric_values.append(
-                    MetricValueResponse(
-                        metric_key=metric.key,
-                        metric_name=metric.name,
-                        value=value,
-                        is_primary=(mk == experiment.target_metric_key),
-                        aggregation_unit=metric.aggregation_unit.value,
-                    )
-                )
-
-                # Динамика — только дни, в которых есть хотя бы одно событие
-                day_points = _compute_daily_dynamics(
-                    metric, events, from_time, to_time
-                )
-                if day_points:
-                    dynamics_list.append(
-                        MetricDynamics(metric_key=metric.key, points=day_points)
-                    )
-
+            metric_values, dynamics_list = _build_metric_results(
+                metric_keys,
+                metrics_map,
+                events,
+                from_time,
+                to_time,
+                primary_metric_key=experiment.target_metric_key,
+            )
             variant_reports.append(
                 VariantReportResponse(
                     variant_name=variant.name,
@@ -114,21 +100,32 @@ class GetExperimentReportUseCase:
                 )
             )
 
-        units = {
-            mk: metrics_map[mk].aggregation_unit.value for mk in metrics_map
-        }
-        unique_units = set(units.values())
-        top_level_unit: str | None = (
-            next(iter(unique_units)) if len(unique_units) == 1 else None
+        # Build overall report — recalculate on the combined event set (not
+        # an average of variant values, which would be wrong for RATIO/percentile)
+        all_events: list[Event] = []
+        for events in events_by_variant.values():
+            all_events.extend(events)
+
+        overall_metrics, overall_dynamics = _build_metric_results(
+            metric_keys,
+            metrics_map,
+            all_events,
+            from_time,
+            to_time,
+            primary_metric_key=experiment.target_metric_key,
+        )
+        overall = OverallReportResponse(
+            metrics=overall_metrics,
+            dynamics=overall_dynamics,
         )
 
         return ExperimentReportResponse(
             experiment_id=experiment_id,
             experiment_name=experiment.name,
-            from_time=from_time,
-            to_time=to_time,
+            from_time=_to_unix(from_time),
+            to_time=_to_unix(to_time),
+            overall=overall,
             variants=variant_reports,
-            aggregation_unit=top_level_unit,
             context={
                 "attribution": "attributed_only",
                 "window_from": from_time.isoformat(),
@@ -138,13 +135,49 @@ class GetExperimentReportUseCase:
         )
 
 
+def _build_metric_results(
+    metric_keys: list[str],
+    metrics_map: dict[str, Metric],
+    events: list[Event],
+    from_time: datetime,
+    to_time: datetime,
+    primary_metric_key: str | None,
+) -> tuple[list[MetricValueResponse], list[MetricDynamics]]:
+    metric_values: list[MetricValueResponse] = []
+    dynamics_list: list[MetricDynamics] = []
+
+    for mk in metric_keys:
+        metric = metrics_map.get(mk)
+        if metric is None:
+            continue
+
+        value = calculate_metric(metric, events)
+        metric_values.append(
+            MetricValueResponse(
+                metric_key=metric.key,
+                metric_name=metric.name,
+                value=value,
+                is_primary=(mk == primary_metric_key),
+                aggregation_unit=metric.aggregation_unit.value,
+            )
+        )
+
+        day_points = _compute_daily_dynamics(metric, events, from_time, to_time)
+        if day_points:
+            dynamics_list.append(
+                MetricDynamics(metric_key=metric.key, points=day_points)
+            )
+
+    return metric_values, dynamics_list
+
+
 def _compute_daily_dynamics(
     metric: Metric,
     events: list[Event],
     from_time: datetime,
     to_time: datetime,
 ) -> list[MetricDynamicsPoint]:
-    """Группирует события по дням и вычисляет метрику — только для дней с данными."""
+    """Group events by day and compute metric — only for days with data."""
     buckets: dict[datetime, list[Event]] = defaultdict(list)
     for event in events:
         ts = event.timestamp
@@ -166,7 +199,9 @@ def _compute_daily_dynamics(
         day_events = buckets.get(current)
         if day_events:
             value = calculate_metric(metric, day_events)
-            points.append(MetricDynamicsPoint(timestamp=current, value=value))
+            points.append(
+                MetricDynamicsPoint(timestamp=_to_unix(current), value=value)
+            )
         current += timedelta(days=1)
 
     return points

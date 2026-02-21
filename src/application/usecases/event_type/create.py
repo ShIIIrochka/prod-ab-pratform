@@ -6,6 +6,7 @@ from src.application.ports.event_types_repository import (
 )
 from src.application.ports.uow import UnitOfWorkPort
 from src.domain.aggregates.event_type import EventType
+from src.domain.exceptions.events import EventTypeAlreadyExistsError
 
 
 class CreateEventTypeUseCase:
@@ -18,6 +19,9 @@ class CreateEventTypeUseCase:
         self._uow = uow
 
     async def execute(self, data: EventTypeCreateRequest) -> EventType:
+        if await self._event_types_repository.get_by_key(data.key):
+            raise EventTypeAlreadyExistsError
+
         event_type = EventType(
             key=data.key,
             name=data.name,

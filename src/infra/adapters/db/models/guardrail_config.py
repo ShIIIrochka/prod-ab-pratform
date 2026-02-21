@@ -12,7 +12,7 @@ from src.domain.value_objects.guardrail_config import (
 
 
 class GuardrailConfigModel(Model):
-    id = fields.IntField(pk=True, description="Auto-increment ID")
+    id = fields.UUIDField(pk=True, generate=True)
     experiment_id = fields.CharField(
         max_length=36, index=True, description="Experiment UUID"
     )
@@ -39,6 +39,7 @@ class GuardrailConfigModel(Model):
 
     def to_domain(self) -> GuardrailConfig:
         return GuardrailConfig(
+            id=self.id,
             metric_key=self.metric_key,
             threshold=self.threshold,
             observation_window_minutes=self.observation_window_minutes,
