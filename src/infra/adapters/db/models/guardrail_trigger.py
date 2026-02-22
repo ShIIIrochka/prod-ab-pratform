@@ -4,7 +4,7 @@ from tortoise import fields
 from tortoise.fields import OnDelete
 from tortoise.models import Model
 
-from src.domain.value_objects.guardrail_config import GuardrailAction
+from src.domain.entities.guardrail_config import GuardrailAction
 from src.domain.value_objects.guardrail_trigger import GuardrailTrigger
 
 

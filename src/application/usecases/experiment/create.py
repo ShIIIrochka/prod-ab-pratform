@@ -11,6 +11,7 @@ from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
 from src.application.ports.users_repository import UsersRepositoryPort
 from src.domain.aggregates.experiment import Experiment
+from src.domain.entities.guardrail_config import GuardrailConfig
 from src.domain.entities.variant import Variant
 from src.domain.exceptions import UserNotFoundError
 from src.domain.exceptions.decision import (
@@ -19,7 +20,6 @@ from src.domain.exceptions.decision import (
     VariantValueTypeError,
 )
 from src.domain.value_objects.experiment_status import ExperimentStatus
-from src.domain.value_objects.guardrail_config import GuardrailConfig
 from src.domain.value_objects.targeting_rule import TargetingRule
 
 

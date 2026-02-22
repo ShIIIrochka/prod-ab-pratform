@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
-from uuid import UUID
+
+from src.domain.aggregates import BaseEntity
 
 
 class GuardrailAction(StrEnum):
@@ -12,15 +13,12 @@ class GuardrailAction(StrEnum):
     ROLLBACK_TO_CONTROL = "rollback_to_control"
 
 
-@dataclass(frozen=True)
-class GuardrailConfig:
+@dataclass
+class GuardrailConfig(BaseEntity):
     metric_key: str
     threshold: float
     observation_window_minutes: int
     action: GuardrailAction
-    # id is None when the config has just been constructed in domain logic
-    # (before being persisted); always populated when loaded from the repository.
-    id: UUID | None = field(default=None)
 
     def __post_init__(self) -> None:
         if self.observation_window_minutes <= 0:

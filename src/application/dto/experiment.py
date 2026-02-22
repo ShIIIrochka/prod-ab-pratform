@@ -6,12 +6,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_serializer
 
+from src.domain.entities.guardrail_config import GuardrailAction
 from src.domain.value_objects.experiment_completion import (
     ExperimentCompletion,
     ExperimentOutcome,
 )
 from src.domain.value_objects.experiment_status import ExperimentStatus
-from src.domain.value_objects.guardrail_config import GuardrailAction
 from src.domain.value_objects.targeting_rule import TargetingRule
 
 

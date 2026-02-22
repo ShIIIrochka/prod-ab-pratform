@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
-from src.domain.value_objects.guardrail_config import GuardrailAction
+from src.domain.entities.guardrail_config import GuardrailAction
 
 
 @dataclass(frozen=True)

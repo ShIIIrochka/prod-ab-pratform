@@ -5,6 +5,7 @@ from datetime import datetime
 
 from src.domain.aggregates import BaseEntity
 from src.domain.aggregates.user import User
+from src.domain.entities.guardrail_config import GuardrailConfig
 from src.domain.entities.variant import Variant
 from src.domain.exceptions import DuplicateVariantNamesError
 from src.domain.exceptions.experiment import CannotReviewExperimentError
@@ -14,7 +15,6 @@ from src.domain.value_objects.experiment_completion import (
     ExperimentOutcome,
 )
 from src.domain.value_objects.experiment_status import ExperimentStatus
-from src.domain.value_objects.guardrail_config import GuardrailConfig
 from src.domain.value_objects.targeting_rule import TargetingRule
 from src.domain.value_objects.user_role import UserRole
 

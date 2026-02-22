@@ -6,8 +6,8 @@ from uuid import UUID
 from src.application.ports.guardrail_configs_repository import (
     GuardrailConfigsRepositoryPort,
 )
+from src.domain.entities.guardrail_config import GuardrailConfig
 from src.domain.value_objects.experiment_status import ExperimentStatus
-from src.domain.value_objects.guardrail_config import GuardrailConfig
 from src.infra.adapters.db.models.experiment import ExperimentModel
 from src.infra.adapters.db.models.guardrail_config import GuardrailConfigModel
 

@@ -26,7 +26,7 @@ from src.application.ports.guardrail_triggers_repository import (
 from src.application.ports.metric_aggregator import MetricAggregatorPort
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
-from src.domain.value_objects.guardrail_config import GuardrailAction
+from src.domain.entities.guardrail_config import GuardrailAction
 from src.domain.value_objects.guardrail_trigger import GuardrailTrigger
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from src.domain.value_objects.guardrail_config import GuardrailConfig
+from src.domain.entities.guardrail_config import GuardrailConfig
 
 
 class GuardrailConfigsRepositoryPort(ABC):
