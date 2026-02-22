@@ -29,7 +29,7 @@ class EventsRepository(EventsRepositoryPort):
         return await EventModel.exists(id=event_id)
 
     async def get_by_decision_id(
-        self, decision_id: str, event_type_key: str | None = None
+        self, decision_id: UUID, event_type_key: str | None = None
     ) -> list[Event]:
         query = EventModel.filter(decision_id=decision_id)
         if event_type_key:
@@ -38,7 +38,7 @@ class EventsRepository(EventsRepositoryPort):
         return [model.to_domain() for model in models]
 
     async def get_exposure_by_decision_id(
-        self, decision_id: str
+        self, decision_id: UUID
     ) -> list[Event]:
         models = await EventModel.filter(
             decision_id=decision_id,
@@ -53,7 +53,6 @@ class EventsRepository(EventsRepositoryPort):
         to_time: datetime,
         attribution_status: AttributionStatus | None = None,
     ) -> list[Event]:
-        # Use UUID object directly — string comparison fails for UUID FK in PostgreSQL
         decision_ids = await DecisionModel.filter(
             experiment_id=experiment_id
         ).values_list("id", flat=True)
@@ -61,12 +60,8 @@ class EventsRepository(EventsRepositoryPort):
         if not decision_ids:
             return []
 
-        # decision_ids are UUID objects from UUIDField pk; convert to strings for
-        # EventModel.decision_id (CharField)
-        decision_id_strs = [str(d) for d in decision_ids]
-
         query = EventModel.filter(
-            decision_id__in=decision_id_strs,
+            decision_id__in=decision_ids,
             timestamp__gte=from_time,
             timestamp__lt=to_time,
         )
@@ -98,7 +93,6 @@ class EventsRepository(EventsRepositoryPort):
         to_time: datetime,
         attribution_status: AttributionStatus | None = None,
     ) -> dict[str, list[Event]]:
-        # Step 1: load all decisions for this experiment (UUID FK — pass UUID directly)
         decisions = await DecisionModel.filter(
             experiment_id=experiment_id
         ).prefetch_related("variant")
@@ -106,18 +100,16 @@ class EventsRepository(EventsRepositoryPort):
         if not decisions:
             return {}
 
-        # Build decision_id (string) → variant_name mapping
-        decision_to_variant: dict[str, str] = {}
+        decision_to_variant: dict[UUID, str] = {}
         for decision in decisions:
             if decision.variant_id is not None:  # type: ignore[attr-defined]
                 variant = await decision.variant  # type: ignore[attr-defined]
                 if variant is not None:
-                    decision_to_variant[str(decision.id)] = variant.name
+                    decision_to_variant[decision.id] = variant.name
 
         if not decision_to_variant:
             return {}
 
-        # Step 2: load events for those decisions in the time window
         event_query = EventModel.filter(
             decision_id__in=list(decision_to_variant.keys()),
             timestamp__gte=from_time,
@@ -131,7 +123,7 @@ class EventsRepository(EventsRepositoryPort):
 
         grouped: dict[str, list[Event]] = defaultdict(list)
         for model in event_models:
-            variant_name = decision_to_variant.get(model.decision_id)
+            variant_name = decision_to_variant.get(model.decision_id)  # type: ignore[arg-type]
             if variant_name:
                 grouped[variant_name].append(model.to_domain())
 

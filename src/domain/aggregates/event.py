@@ -17,7 +17,7 @@ class AttributionStatus(StrEnum):
 class Event:
     id: UUID
     event_type_key: str
-    decision_id: str
+    decision_id: UUID
     subject_id: str
     timestamp: datetime
     props: dict[str, Any]

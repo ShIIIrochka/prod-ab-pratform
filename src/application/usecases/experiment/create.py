@@ -7,9 +7,6 @@ from src.application.ports.experiments_repository import (
 from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
-from src.application.ports.guardrail_configs_repository import (
-    GuardrailConfigsRepositoryPort,
-)
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
 from src.application.ports.users_repository import UsersRepositoryPort
@@ -32,14 +29,12 @@ class CreateExperimentUseCase:
         experiments_repository: ExperimentsRepositoryPort,
         feature_flags_repository: FeatureFlagsRepositoryPort,
         user_repository: UsersRepositoryPort,
-        guardrail_configs_repository: GuardrailConfigsRepositoryPort,
         metrics_repository: MetricsRepositoryPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._feature_flags_repository = feature_flags_repository
         self._user_repository = user_repository
-        self._guardrail_configs_repository = guardrail_configs_repository
         self._metrics_repository = metrics_repository
         self._uow = uow
 
@@ -87,7 +82,6 @@ class CreateExperimentUseCase:
         if data.targeting_rule:
             targeting_rule = TargetingRule(rule_expression=data.targeting_rule)
 
-        # Проверяем наличие метрик в каталоге, сохраняем ключи напрямую
         if data.target_metric_key:
             m = await self._metrics_repository.get_by_key(
                 data.target_metric_key
@@ -129,6 +123,7 @@ class CreateExperimentUseCase:
             targeting_rule=targeting_rule,
             owner_id=owner_id,
             approvals=[],
+            guardrails=guardrail_configs,
             completion=None,
             target_metric_key=data.target_metric_key,
             metric_keys=metric_keys,
@@ -136,9 +131,6 @@ class CreateExperimentUseCase:
         try:
             async with self._uow:
                 await self._experiments_repository.save(experiment)
-                await self._guardrail_configs_repository.replace_for_experiment(
-                    experiment.id, guardrail_configs
-                )
         except ValueError:
             raise VariantNameAlreadyExistsError
         return experiment

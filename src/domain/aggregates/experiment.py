@@ -14,6 +14,7 @@ from src.domain.value_objects.experiment_completion import (
     ExperimentOutcome,
 )
 from src.domain.value_objects.experiment_status import ExperimentStatus
+from src.domain.value_objects.guardrail_config import GuardrailConfig
 from src.domain.value_objects.targeting_rule import TargetingRule
 from src.domain.value_objects.user_role import UserRole
 
@@ -31,6 +32,7 @@ class Experiment(BaseEntity):
     target_metric_key: str | None = None
     metric_keys: list[str] = field(default_factory=list)
     approvals: list[Approval] = field(default_factory=list)
+    guardrails: list[GuardrailConfig] = field(default_factory=list)
     completion: ExperimentCompletion | None = None
     rollback_to_control_active: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)

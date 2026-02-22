@@ -9,9 +9,6 @@ from src.application.ports.experiments_repository import (
 from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
-from src.application.ports.guardrail_configs_repository import (
-    GuardrailConfigsRepositoryPort,
-)
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
 from src.domain.aggregates.experiment import Experiment
@@ -31,13 +28,11 @@ class UpdateExperimentUseCase:
         self,
         experiments_repository: ExperimentsRepositoryPort,
         feature_flags_repository: FeatureFlagsRepositoryPort,
-        guardrail_configs_repository: GuardrailConfigsRepositoryPort,
         metrics_repository: MetricsRepositoryPort,
         uow: UnitOfWorkPort,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._feature_flags_repository = feature_flags_repository
-        self._guardrail_configs_repository = guardrail_configs_repository
         self._metrics_repository = metrics_repository
         self._uow = uow
 
@@ -52,11 +47,15 @@ class UpdateExperimentUseCase:
             msg = f"Cannot edit experiment in status {experiment.status}"
             raise ValueError(msg)
 
+        changed = False
+
         if data.name is not None:
             experiment.name = data.name
+            changed = True
 
         if data.audience_fraction is not None:
             experiment.audience_fraction = data.audience_fraction
+            changed = True
 
         if data.variants is not None:
             flag = await self._feature_flags_repository.get_by_key(
@@ -79,11 +78,13 @@ class UpdateExperimentUseCase:
                 )
                 for v in data.variants
             ]
+            changed = True
 
         if data.targeting_rule is not None:
             experiment.targeting_rule = TargetingRule(
                 rule_expression=data.targeting_rule
             )
+            changed = True
 
         if data.target_metric_key is not None:
             m = await self._metrics_repository.get_by_key(
@@ -93,6 +94,7 @@ class UpdateExperimentUseCase:
                 msg = f"Metric '{data.target_metric_key}' not found"
                 raise ValueError(msg)
             experiment.target_metric_key = data.target_metric_key
+            changed = True
 
         if data.metric_keys is not None:
             metric_keys: list[str] = []
@@ -103,10 +105,10 @@ class UpdateExperimentUseCase:
                     raise ValueError(msg)
                 metric_keys.append(mk)
             experiment.metric_keys = metric_keys
+            changed = True
 
-        new_guardrails: list[GuardrailConfig] | None = None
         if data.guardrails is not None:
-            new_guardrails = []
+            new_guardrails: list[GuardrailConfig] = []
             for g in data.guardrails:
                 m = await self._metrics_repository.get_by_key(g.metric_key)
                 if not m:
@@ -120,14 +122,15 @@ class UpdateExperimentUseCase:
                         action=g.action,
                     )
                 )
+            experiment.guardrails = new_guardrails
+            changed = True
+
+        if changed:
+            experiment.version += 1
 
         try:
             async with self._uow:
                 await self._experiments_repository.save(experiment)
-                if new_guardrails is not None:
-                    await self._guardrail_configs_repository.replace_for_experiment(
-                        experiment_id, new_guardrails
-                    )
         except ValueError as e:
             if "Variant name already exists" in str(e):
                 raise VariantNameAlreadyExistsError from e

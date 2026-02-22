@@ -11,6 +11,7 @@ from src.domain.aggregates.experiment import Experiment
 from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.infra.adapters.db.models.approval import ApprovalModel
 from src.infra.adapters.db.models.experiment import ExperimentModel
+from src.infra.adapters.db.models.guardrail_config import GuardrailConfigModel
 from src.infra.adapters.db.models.user import UserModel
 from src.infra.adapters.db.models.variant import VariantModel
 
@@ -22,8 +23,7 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
                 flag_key=flag_key,
                 status=ExperimentStatus.RUNNING.value,
             )
-            .prefetch_related("variants")
-            .prefetch_related("owner")
+            .prefetch_related("variants", "owner", "guardrail_configs")
             .first()
         )
 
@@ -39,7 +39,7 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
         models = await ExperimentModel.filter(
             flag_key__in=keys,
             status=ExperimentStatus.RUNNING.value,
-        ).prefetch_related("variants", "owner")
+        ).prefetch_related("variants", "owner", "guardrail_configs")
         result: dict[str, Experiment] = {}
         for model in models:
             domain = await model.to_domain()
@@ -50,7 +50,7 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
         if not ids:
             return {}
         models = await ExperimentModel.filter(id__in=ids).prefetch_related(
-            "variants", "owner"
+            "variants", "owner", "guardrail_configs"
         )
         result: dict[UUID, Experiment] = {}
         for model in models:
@@ -60,14 +60,14 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
 
     async def save(self, experiment: Experiment) -> None:
         existing_model = await ExperimentModel.get_or_none(id=experiment.id)
+        model = ExperimentModel.from_domain(experiment)
         if existing_model:
-            model = ExperimentModel.from_domain(experiment)
             await model.save(force_update=True)
         else:
-            model = ExperimentModel.from_domain(experiment)
             await model.save()
 
         await self._upsert_variants(experiment)
+        await self._replace_guardrails(experiment)
         await ApprovalModel.filter(experiment_id=experiment.id).delete()
         if experiment.approvals:
             experiment_model = await ExperimentModel.get(id=experiment.id)
@@ -83,6 +83,15 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
                     )
                 )
             await ApprovalModel.bulk_create(approval_models)
+
+    async def _replace_guardrails(self, experiment: Experiment) -> None:
+        await GuardrailConfigModel.filter(experiment_id=experiment.id).delete()
+        if experiment.guardrails:
+            new_models = [
+                GuardrailConfigModel.from_domain(g, experiment.id)
+                for g in experiment.guardrails
+            ]
+            await GuardrailConfigModel.bulk_create(new_models)
 
     async def _upsert_variants(self, experiment: Experiment) -> None:
         incoming_names = {v.name for v in experiment.variants}
@@ -114,7 +123,7 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
     async def get_by_id(self, experiment_id: UUID) -> Experiment | None:
         model = (
             await ExperimentModel.filter(id=experiment_id)
-            .prefetch_related("variants", "owner")
+            .prefetch_related("variants", "owner", "guardrail_configs")
             .first()
         )
         if model is None:
@@ -126,7 +135,9 @@ class ExperimentsRepository(ExperimentsRepositoryPort):
         flag_key: str | None = None,
         status: ExperimentStatus | None = None,
     ) -> list[Experiment]:
-        query = ExperimentModel.all().prefetch_related("variants", "owner")
+        query = ExperimentModel.all().prefetch_related(
+            "variants", "owner", "guardrail_configs"
+        )
 
         if flag_key:
             query = query.filter(flag_key=flag_key)

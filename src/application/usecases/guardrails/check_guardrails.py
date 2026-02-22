@@ -90,7 +90,7 @@ class CheckGuardrailsUseCase:
 
                 now = datetime.now(UTC)
                 trigger = GuardrailTrigger(
-                    experiment_id=str(experiment_id),
+                    experiment_id=experiment_id,
                     metric_key=config.metric_key,
                     threshold=config.threshold,
                     observation_window_minutes=config.observation_window_minutes,

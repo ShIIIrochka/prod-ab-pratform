@@ -22,13 +22,13 @@ class EventsRepositoryPort(ABC):
 
     @abstractmethod
     async def get_by_decision_id(
-        self, decision_id: str, event_type_key: str | None = None
+        self, decision_id: UUID, event_type_key: str | None = None
     ) -> list[Event]:
         raise NotImplementedError
 
     @abstractmethod
     async def get_exposure_by_decision_id(
-        self, decision_id: str
+        self, decision_id: UUID
     ) -> list[Event]:
         """Получить только exposure-события по decision_id."""
         raise NotImplementedError

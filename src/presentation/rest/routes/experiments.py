@@ -8,20 +8,15 @@ from fastapi import APIRouter, Depends, Security, status
 from src.application.dto.experiment import (
     ApproveExperimentRequest,
     CompleteExperimentRequest,
-    ExperimentCompletionResponse,
     ExperimentCreateRequest,
     ExperimentListResponse,
     ExperimentResponse,
     ExperimentUpdateRequest,
-    GuardrailConfigResponse,
     GuardrailTriggerResponse,
     RejectExperimentRequest,
     RequestChangesRequest,
 )
 from src.application.dto.user import UserResponse
-from src.application.ports.guardrail_configs_repository import (
-    GuardrailConfigsRepositoryPort,
-)
 from src.application.ports.guardrail_triggers_repository import (
     GuardrailTriggersRepositoryPort,
 )
@@ -56,31 +51,8 @@ router = APIRouter(
 )
 
 
-async def _build_experiment_response(
-    experiment: Experiment, container: Container
-) -> ExperimentResponse:
-    """Строит ExperimentResponse, дополняя его guardrails из БД."""
-    guardrail_repo = container.resolve(GuardrailConfigsRepositoryPort)
-    guardrails = await guardrail_repo.get_by_experiment_id(experiment.id)
-
-    guardrail_responses = [
-        GuardrailConfigResponse(
-            id=g.id,
-            metric_key=g.metric_key,
-            threshold=g.threshold,
-            observation_window_minutes=g.observation_window_minutes,
-            action=g.action,
-        )
-        for g in guardrails
-    ]
-
-    response = ExperimentResponse.model_validate(experiment)
-    response.guardrails = guardrail_responses
-    if experiment.completion:
-        response.completion = ExperimentCompletionResponse.from_domain(
-            experiment.completion
-        )
-    return response
+def _to_response(experiment: Experiment) -> ExperimentResponse:
+    return ExperimentResponse.model_validate(experiment)
 
 
 @router.post(
@@ -98,7 +70,7 @@ async def create_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(CreateExperimentUseCase)
     experiment = await use_case.execute(data, current_user.id)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.get("", response_model=ExperimentListResponse)
@@ -109,32 +81,9 @@ async def list_experiments(
 ) -> ExperimentListResponse:
     use_case = container.resolve(ListExperimentsUseCase)
     experiments = await use_case.execute(flag_key=flag_key, status=status)
-
-    guardrail_repo = container.resolve(GuardrailConfigsRepositoryPort)
-    guardrails_by_exp = await guardrail_repo.get_by_experiment_ids(
-        [e.id for e in experiments]
+    return ExperimentListResponse(
+        experiments=[_to_response(e) for e in experiments]
     )
-
-    result: list[ExperimentResponse] = []
-    for exp in experiments:
-        response = ExperimentResponse.model_validate(exp)
-        response.guardrails = [
-            GuardrailConfigResponse(
-                id=g.id,
-                metric_key=g.metric_key,
-                threshold=g.threshold,
-                observation_window_minutes=g.observation_window_minutes,
-                action=g.action,
-            )
-            for g in guardrails_by_exp.get(exp.id, [])
-        ]
-        if exp.completion:
-            response.completion = ExperimentCompletionResponse.from_domain(
-                exp.completion
-            )
-        result.append(response)
-
-    return ExperimentListResponse(experiments=result)
 
 
 @router.get("/{experiment_id}", response_model=ExperimentResponse)
@@ -144,7 +93,7 @@ async def get_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(GetExperimentUseCase)
     experiment = await use_case.execute(experiment_id)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.patch("/{experiment_id}", response_model=ExperimentResponse)
@@ -159,7 +108,7 @@ async def update_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(UpdateExperimentUseCase)
     experiment = await use_case.execute(experiment_id, data)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post(
@@ -175,7 +124,7 @@ async def send_to_review(
 ) -> ExperimentResponse:
     use_case = container.resolve(SendExperimentToReviewUseCase)
     experiment = await use_case.execute(experiment_id)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post("/{experiment_id}/approve", response_model=ExperimentResponse)
@@ -190,7 +139,7 @@ async def approve_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(ApproveExperimentUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id, data)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post(
@@ -207,7 +156,7 @@ async def request_changes(
 ) -> ExperimentResponse:
     use_case = container.resolve(RequestChangesUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id, data)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post("/{experiment_id}/reject", response_model=ExperimentResponse)
@@ -222,7 +171,7 @@ async def reject_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(RejectExperimentUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id, data)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post("/{experiment_id}/launch", response_model=ExperimentResponse)
@@ -236,7 +185,7 @@ async def launch_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(LaunchExperimentUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post("/{experiment_id}/pause", response_model=ExperimentResponse)
@@ -250,7 +199,7 @@ async def pause_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(PauseExperimentUseCase)
     experiment = await use_case.execute(experiment_id)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post("/{experiment_id}/complete", response_model=ExperimentResponse)
@@ -265,7 +214,7 @@ async def complete_experiment(
 ) -> ExperimentResponse:
     use_case = container.resolve(CompleteExperimentUseCase)
     experiment = await use_case.execute(experiment_id, current_user.id, data)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.post("/{experiment_id}/archive", response_model=ExperimentResponse)
@@ -280,7 +229,7 @@ async def archive_experiment(
     """Archive a completed experiment (COMPLETED → ARCHIVED)."""
     use_case = container.resolve(ArchiveExperimentUseCase)
     experiment = await use_case.execute(experiment_id)
-    return await _build_experiment_response(experiment, container)
+    return _to_response(experiment)
 
 
 @router.get(

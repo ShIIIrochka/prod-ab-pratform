@@ -18,7 +18,7 @@ class GuardrailTriggersRepository(GuardrailTriggersRepositoryPort):
         self, experiment_id: UUID
     ) -> list[GuardrailTrigger]:
         models = (
-            await GuardrailTriggerModel.filter(experiment_id=str(experiment_id))
+            await GuardrailTriggerModel.filter(experiment_id=experiment_id)
             .order_by("-triggered_at")
             .all()
         )

@@ -20,7 +20,7 @@ def _serialize_event(event: Event) -> str:
         {
             "id": str(event.id),
             "event_type_key": event.event_type_key,
-            "decision_id": event.decision_id,
+            "decision_id": str(event.decision_id),
             "subject_id": event.subject_id,
             "timestamp": event.timestamp.isoformat(),
             "props": event.props,
@@ -42,7 +42,7 @@ def _deserialize_event(data: str) -> Event:
     return Event(
         id=UUID(payload["id"]),
         event_type_key=payload["event_type_key"],
-        decision_id=payload["decision_id"],
+        decision_id=UUID(payload["decision_id"]),
         subject_id=payload["subject_id"],
         timestamp=datetime.fromisoformat(payload["timestamp"]),
         props=payload["props"],
@@ -75,8 +75,9 @@ class RedisPendingEventsStore(PendingEventsStorePort):
         pipeline.set(self._ttl_marker_key(event_id), "", ex=ttl_seconds)
 
         # Индекс decision_id → set[event_id]
-        pipeline.sadd(self._decision_key(event.decision_id), event_id)
-        pipeline.expire(self._decision_key(event.decision_id), ttl_seconds)
+        decision_id_str = str(event.decision_id)
+        pipeline.sadd(self._decision_key(decision_id_str), event_id)
+        pipeline.expire(self._decision_key(decision_id_str), ttl_seconds)
 
         await pipeline.execute()
 
@@ -120,7 +121,9 @@ class RedisPendingEventsStore(PendingEventsStorePort):
             pipeline.delete(self._ttl_marker_key(str(event_id)))
 
         for event in events_to_remove:
-            pipeline.srem(self._decision_key(event.decision_id), str(event.id))
+            pipeline.srem(
+                self._decision_key(str(event.decision_id)), str(event.id)
+            )
 
         await pipeline.execute()
 

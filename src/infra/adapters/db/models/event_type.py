@@ -40,6 +40,6 @@ class EventTypeModel(Model):
             key=event_type.key,
             name=event_type.name,
             description=event_type.description,
-            required_params_json=event_type.required_params,
+            required_params=event_type.required_params,
             requires_exposure=event_type.requires_exposure,
         )

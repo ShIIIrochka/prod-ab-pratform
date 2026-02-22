@@ -11,7 +11,7 @@ from src.domain.value_objects.guardrail_config import GuardrailAction
 class GuardrailTrigger:
     """Запись о срабатывании guardrail."""
 
-    experiment_id: str
+    experiment_id: UUID
     metric_key: str
     threshold: float
     observation_window_minutes: int
@@ -22,6 +22,6 @@ class GuardrailTrigger:
     id: UUID | None = field(default=None)
 
     def __post_init__(self) -> None:
-        if not self.experiment_id:
+        if self.experiment_id is None:
             msg = "Experiment ID cannot be empty"
             raise ValueError(msg)

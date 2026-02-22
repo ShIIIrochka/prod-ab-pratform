@@ -32,7 +32,51 @@ def _to_response(result: EventsBatchResult) -> SendEventsResponse:
 
 
 @router.post(
-    "/events", response_model=SendEventsResponse, status_code=status.HTTP_200_OK
+    "/events",
+    response_model=SendEventsResponse,
+    status_code=status.HTTP_200_OK,
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "exposure_event": {
+                            "summary": "Single exposure event",
+                            "value": {
+                                "events": [
+                                    {
+                                        "event_type_key": "exposure",
+                                        "decision_id": "550e8400-e29b-41d4-a716-446655440000",
+                                        "timestamp": 1700000000,
+                                        "props": {},
+                                    }
+                                ]
+                            },
+                        },
+                        "batch_exposure_and_conversion": {
+                            "summary": "Exposure + conversion batch",
+                            "value": {
+                                "events": [
+                                    {
+                                        "event_type_key": "exposure",
+                                        "decision_id": "550e8400-e29b-41d4-a716-446655440000",
+                                        "timestamp": 1700000000,
+                                        "props": {"screen": "checkout"},
+                                    },
+                                    {
+                                        "event_type_key": "conversion",
+                                        "decision_id": "550e8400-e29b-41d4-a716-446655440000",
+                                        "timestamp": 1700000060,
+                                        "props": {"product_id": "book-123"},
+                                    },
+                                ]
+                            },
+                        },
+                    }
+                }
+            }
+        }
+    },
 )
 async def send_events(
     data: SendEventsRequest,

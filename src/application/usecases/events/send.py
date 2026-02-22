@@ -95,12 +95,7 @@ class SendEventsUseCase:
     def _parse_event(
         idx: int, raw: Any
     ) -> SendEventRequest | EventProcessingError:
-        """Попытаться разобрать один элемент батча в SendEventRequest.
-
-        Если raw не является dict или не проходит Pydantic-валидацию,
-        возвращает EventProcessingError с описанием причины вместо исключения,
-        чтобы батч продолжил обработку остальных элементов.
-        """
+        """Попытаться разобрать один элемент батча в SendEventRequest."""
         try:
             return SendEventRequest.model_validate(raw)
         except ValidationError as exc:
@@ -129,14 +124,6 @@ class SendEventsUseCase:
     async def _process_single_event(
         self, idx: int, event_data
     ) -> Event | EventProcessingError | None:
-        """Обработать одно событие.
-
-        Returns:
-            Event — успешно принято,
-            EventProcessingError — отклонено с причиной,
-            None — дубликат.
-        """
-        # Проверяем существование типа события
         event_type = await self._event_types_repository.get_by_key(
             event_data.event_type_key
         )
@@ -147,7 +134,6 @@ class SendEventsUseCase:
                 reason=f"Event type not found: {event_data.event_type_key}",
             )
 
-        # Валидация обязательных параметров
         validation = self._event_validator.validate(
             required_params=event_type.required_params,
             props=event_data.props,
@@ -162,28 +148,25 @@ class SendEventsUseCase:
                 reason=reasons,
             )
 
-        # Проверяем существование decision_id
-        decision_id = event_data.decision_id
+        decision_id = event_data.decision_id  # UUID
         decision = await self._decisions_repository.get_by_id(decision_id)
         if decision is None:
             return EventProcessingError(
                 index=idx,
                 event_type_key=event_data.event_type_key,
-                reason=f"Decision not found: {event_data.decision_id}",
+                reason=f"Decision not found: {decision_id}",
             )
 
         subject_id = decision.subject_id
 
-        # Генерируем детерминированный ID события
         event_id = self._event_id_generator.generate(
             event_type_key=event_data.event_type_key,
-            decision_id=str(event_data.decision_id),
+            decision_id=str(decision_id),
             subject_id=subject_id,
             timestamp=event_data.timestamp,
             props=event_data.props,
         )
 
-        # Дедупликация
         if await self._events_repository.exists(event_id):
             return None
         if await self._pending_store.exists(str(event_id)):
@@ -191,13 +174,12 @@ class SendEventsUseCase:
 
         normalized_props = validation.normalized_props or event_data.props
         is_exposure = event_data.event_type_key == EXPOSURE_EVENT_TYPE_KEY
-        decision_id_str = str(event_data.decision_id)
 
         if is_exposure:
             event = Event(
                 id=event_id,
                 event_type_key=event_data.event_type_key,
-                decision_id=decision_id_str,
+                decision_id=decision_id,
                 subject_id=subject_id,
                 timestamp=event_data.timestamp,
                 props=normalized_props,
@@ -205,7 +187,7 @@ class SendEventsUseCase:
             )
             async with self._uow:
                 await self._events_repository.save(event)
-                await self._attribute_pending_events(decision_id_str, decision)
+                await self._attribute_pending_events(decision_id, decision)
 
             await self._update_metric_aggregates(event, decision)
             return event
@@ -213,14 +195,14 @@ class SendEventsUseCase:
         if event_type.requires_exposure:
             exposure_events = (
                 await self._events_repository.get_exposure_by_decision_id(
-                    decision_id_str
+                    decision_id
                 )
             )
             if exposure_events:
                 event = Event(
                     id=event_id,
                     event_type_key=event_data.event_type_key,
-                    decision_id=decision_id_str,
+                    decision_id=decision_id,
                     subject_id=subject_id,
                     timestamp=event_data.timestamp,
                     props=normalized_props,
@@ -233,7 +215,7 @@ class SendEventsUseCase:
                 event = Event(
                     id=event_id,
                     event_type_key=event_data.event_type_key,
-                    decision_id=decision_id_str,
+                    decision_id=decision_id,
                     subject_id=subject_id,
                     timestamp=event_data.timestamp,
                     props=normalized_props,
@@ -242,11 +224,10 @@ class SendEventsUseCase:
                 await self._pending_store.put(event)
             return event
 
-        # Не требует exposure -> сразу в БД со статусом ATTRIBUTED
         event = Event(
             id=event_id,
             event_type_key=event_data.event_type_key,
-            decision_id=decision_id_str,
+            decision_id=decision_id,
             subject_id=subject_id,
             timestamp=event_data.timestamp,
             props=normalized_props,
@@ -258,10 +239,10 @@ class SendEventsUseCase:
         return event
 
     async def _attribute_pending_events(
-        self, decision_id: str, decision: Decision
+        self, decision_id, decision: Decision
     ) -> None:
         pending_events = await self._pending_store.get_by_decision_id(
-            decision_id
+            str(decision_id)
         )
         if not pending_events:
             return
@@ -278,11 +259,6 @@ class SendEventsUseCase:
     async def _update_metric_aggregates(
         self, event: Event, decision: Decision
     ) -> None:
-        """Обновить Redis-агрегаты при сохранении ATTRIBUTED-события.
-
-        Вызывается только для экспериментальных решений (где есть experiment_id).
-        Загружает guardrail-метрики эксперимента и передаёт событие агрегатору.
-        """
         if not decision.experiment_id:
             return
 
@@ -305,7 +281,6 @@ class SendEventsUseCase:
                 return
 
             max_window = max(c.observation_window_minutes for c in configs)
-            # TTL = max observation window * 60 + 2-minute buffer
             ttl = max_window * 60 + 120
 
             await self._metric_aggregator.update(
@@ -315,7 +290,6 @@ class SendEventsUseCase:
                 max_ttl_seconds=ttl,
             )
         except Exception as exc:
-            # Не блокируем основной поток при ошибке агрегации
             logger.warning(
                 "Failed to update metric aggregates for experiment %s: %s",
                 decision.experiment_id,

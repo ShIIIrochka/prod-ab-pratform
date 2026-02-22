@@ -33,9 +33,16 @@ class ExperimentModel(Model):
     )
     completion = fields.JSONField(null=True)
     rollback_to_control_active = fields.BooleanField(default=False)
-    target_metric_key = fields.CharField(max_length=255, null=True)
+    target_metric = fields.ForeignKeyField(
+        "models.MetricModel",
+        to_field="key",
+        null=True,
+        on_delete=OnDelete.SET_NULL,
+        related_name="target_metric_experiments",
+    )
     metric_keys = fields.JSONField(default=list)
     variants: ReverseRelation["models.VariantModel"]  # type: ignore # noqa
+    guardrail_configs: ReverseRelation["models.GuardrailConfigModel"]  # type: ignore # noqa
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 
@@ -67,6 +74,9 @@ class ExperimentModel(Model):
         variants_list = await self.variants.all()
         variants = [variant.to_domain() for variant in variants_list]
 
+        guardrail_list = await self.guardrail_configs.all()
+        guardrails = [g.to_domain() for g in guardrail_list]
+
         return Experiment(
             id=self.id,
             flag_key=self.flag_key,
@@ -78,9 +88,10 @@ class ExperimentModel(Model):
             audience_fraction=self.audience_fraction,
             targeting_rule=targeting_rule,
             approvals=approvals,
+            guardrails=guardrails,
             completion=completion,
             rollback_to_control_active=self.rollback_to_control_active,
-            target_metric_key=self.target_metric_key,
+            target_metric_key=self.target_metric_id,  # type: ignore[arg-type]
             metric_keys=list(self.metric_keys or []),
             created_at=self.created_at,
             updated_at=self.updated_at,
@@ -111,7 +122,7 @@ class ExperimentModel(Model):
             owner_id=experiment.owner_id,
             completion=completion_json,
             rollback_to_control_active=experiment.rollback_to_control_active,
-            target_metric_key=experiment.target_metric_key,
+            target_metric_id=experiment.target_metric_key,
             metric_keys=list(experiment.metric_keys),
             created_at=experiment.created_at,
             updated_at=experiment.updated_at,

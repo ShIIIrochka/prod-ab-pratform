@@ -14,7 +14,12 @@ class DecisionModel(Model):
         related_name="decisions",
         on_delete=OnDelete.RESTRICT,
     )
-    flag_key = fields.CharField(max_length=255, index=True)
+    flag = fields.ForeignKeyField(
+        "models.FeatureFlagModel",
+        to_field="key",
+        related_name="decisions",
+        on_delete=OnDelete.RESTRICT,
+    )
     value = fields.JSONField()
     experiment = fields.ForeignKeyField(
         "models.ExperimentModel",
@@ -40,7 +45,7 @@ class DecisionModel(Model):
         return Decision(
             id=self.id,
             subject_id=self.user_id,  # type: ignore
-            flag_key=self.flag_key,
+            flag_key=self.flag_id,  # type: ignore[arg-type]
             value=self.value.get("value"),
             experiment_id=experiment.id if experiment else None,
             variant_id=variant.id if variant else None,
@@ -54,7 +59,7 @@ class DecisionModel(Model):
         return cls(
             id=decision.id,
             user_id=decision.subject_id,
-            flag_key=decision.flag_key,
+            flag_id=decision.flag_key,
             value={"value": decision.value},
             experiment_id=decision.experiment_id,
             variant_id=decision.variant_id,

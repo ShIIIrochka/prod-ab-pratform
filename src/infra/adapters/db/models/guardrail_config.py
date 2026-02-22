@@ -3,6 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from tortoise import fields
+from tortoise.fields import OnDelete
 from tortoise.models import Model
 
 from src.domain.value_objects.guardrail_config import (
@@ -13,11 +14,16 @@ from src.domain.value_objects.guardrail_config import (
 
 class GuardrailConfigModel(Model):
     id = fields.UUIDField(pk=True, generate=True)
-    experiment_id = fields.CharField(
-        max_length=36, index=True, description="Experiment UUID"
+    experiment = fields.ForeignKeyField(
+        "models.ExperimentModel",
+        related_name="guardrail_configs",
+        on_delete=OnDelete.CASCADE,
     )
-    metric_key = fields.CharField(
-        max_length=255, index=True, description="Metric key"
+    metric = fields.ForeignKeyField(
+        "models.MetricModel",
+        to_field="key",
+        related_name="guardrail_configs",
+        on_delete=OnDelete.RESTRICT,
     )
     threshold = fields.FloatField(
         description="Threshold value for guardrail trigger"
@@ -34,13 +40,13 @@ class GuardrailConfigModel(Model):
         table = "guardrail_configs"
         indexes = [
             ("experiment_id",),
-            ("metric_key",),
+            ("metric_id",),
         ]
 
     def to_domain(self) -> GuardrailConfig:
         return GuardrailConfig(
             id=self.id,
-            metric_key=self.metric_key,
+            metric_key=self.metric_id,  # type: ignore[arg-type]
             threshold=self.threshold,
             observation_window_minutes=self.observation_window_minutes,
             action=GuardrailAction(self.action),
@@ -48,11 +54,11 @@ class GuardrailConfigModel(Model):
 
     @classmethod
     def from_domain(
-        cls, config: GuardrailConfig, experiment_id: UUID | str
+        cls, config: GuardrailConfig, experiment_id: UUID
     ) -> GuardrailConfigModel:
         return cls(
-            experiment_id=str(experiment_id),
-            metric_key=config.metric_key,
+            experiment_id=experiment_id,
+            metric_id=config.metric_key,
             threshold=config.threshold,
             observation_window_minutes=config.observation_window_minutes,
             action=config.action.value,
