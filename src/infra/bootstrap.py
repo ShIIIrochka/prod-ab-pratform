@@ -25,6 +25,9 @@ from src.application.ports.guardrail_triggers_repository import (
     GuardrailTriggersRepositoryPort,
 )
 from src.application.ports.jwt import JWTPort
+from src.application.ports.learnings_repository import (
+    LearningsRepositoryPort,
+)
 from src.application.ports.metric_aggregator import MetricAggregatorPort
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.notification_channel_configs_repository import (
@@ -63,6 +66,7 @@ from src.application.usecases import (
     DecideUseCase,
     GetExperimentUseCase,
     GetFeatureFlagUseCase,
+    GetSimilarExperimentsUseCase,
     GetUserByIdUseCase,
     LaunchExperimentUseCase,
     ListExperimentsUseCase,
@@ -118,6 +122,7 @@ from src.application.usecases.reports.get_experiment_report import (
 from src.infra.adapters.config import Config
 from src.infra.adapters.db.uow import UnitOfWork
 from src.infra.adapters.jwt import JWTAdapter
+from src.infra.adapters.opensearch.opensearch import OpenSearch
 from src.infra.adapters.password_hasher import PasswordHasher
 from src.infra.adapters.repositories import (
     DecisionsRepository,
@@ -127,6 +132,7 @@ from src.infra.adapters.repositories import (
     FeatureFlagsRepository,
     GuardrailConfigsRepository,
     GuardrailTriggersRepository,
+    LearningsRepository,
     MetricsRepository,
     UserRepository,
 )
@@ -210,6 +216,18 @@ def create_container() -> Container:
     container.register(
         ExperimentVersionsRepositoryPort, ExperimentVersionsRepository
     )
+
+    container.register(
+        OpenSearch,
+        instance=OpenSearch(
+            host=config.opensearch_host,
+            port=config.opensearch_port,
+            username=config.opensearch_username,
+            password=config.opensearch_password,
+            index_name=config.opensearch_index,
+        ),
+    )
+    container.register(LearningsRepositoryPort, LearningsRepository)
 
     redis_client = Redis.from_url(config.redis_url, decode_responses=True)
     container.register(Redis, instance=redis_client)
@@ -313,6 +331,7 @@ def create_container() -> Container:
     container.register(ListMetricsUseCase)
     container.register(GetExperimentReportUseCase)
     container.register(CheckGuardrailsUseCase)
+    container.register(GetSimilarExperimentsUseCase)
 
     container.register(
         PendingEventsTTLListener,

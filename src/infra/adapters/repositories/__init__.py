@@ -14,6 +14,9 @@ from src.infra.adapters.repositories.feature_flags_repository import (
 from src.infra.adapters.repositories.guardrail_configs_repository import (
     GuardrailConfigsRepository,
 )
+from src.infra.adapters.repositories.learnings_repository import (
+    LearningsRepository,
+)
 from src.infra.adapters.repositories.guardrail_triggers_repository import (
     GuardrailTriggersRepository,
 )

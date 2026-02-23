@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import ssl
 
-from opensearchpy import AsyncOpenSearch
+from opensearchpy import AIOHttpConnection, AsyncOpenSearch
 
 
 logger = logging.getLogger(__name__)
@@ -47,10 +47,10 @@ class OpenSearch:
         self._hosts = [{"host": host, "port": port}]
         self._auth = (username, password)
         self._index_name = index_name
-        self._client: AsyncOpenSearch | None = None
+        self._client: AsyncOpenSearch
 
     @property
-    def client(self) -> AsyncOpenSearch | None:
+    def client(self) -> AsyncOpenSearch:
         return self._client
 
     @property
@@ -68,8 +68,12 @@ class OpenSearch:
             self._create_ssl_context()
             self._client = AsyncOpenSearch(
                 hosts=self._hosts,
+                http_auth=self._auth,
                 use_ssl=True,
                 verify_certs=False,
+                ssl_assert_hostname=False,
+                ssl_show_warn=False,
+                connection_class=AIOHttpConnection,
             )
             exists = await self._client.indices.exists(index=self._index_name)
             if not exists:
@@ -82,9 +86,6 @@ class OpenSearch:
                 "OpenSearch connect failed (learnings search disabled): %s",
                 e,
             )
-            self._client = None
 
     async def disconnect(self) -> None:
-        if self._client is not None:
-            await self._client.close()
-            self._client = None
+        await self._client.close()

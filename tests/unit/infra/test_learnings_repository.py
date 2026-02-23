@@ -8,9 +8,6 @@ from uuid import uuid4
 import pytest
 
 from src.application.dto.learnings import GetSimilarCriteria
-from src.application.ports.experiments_repository import (
-    ExperimentsRepositoryPort,
-)
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.variant import Variant
 from src.domain.value_objects.experiment_completion import (
@@ -20,6 +17,7 @@ from src.domain.value_objects.experiment_completion import (
 from src.domain.value_objects.experiment_status import ExperimentStatus
 from src.infra.adapters.repositories.learnings_repository import (
     LearningsRepository,
+    _experiment_to_doc,
 )
 
 
@@ -75,35 +73,7 @@ async def test_save_indexes_completed_experiment() -> None:
         ) -> None:
             indexed.append((id, body))
 
-    class FakeExperimentsRepo(ExperimentsRepositoryPort):
-        async def get_active_by_flag_key(
-            self, flag_key: str
-        ) -> Experiment | None:
-            return None
-
-        async def get_active_by_flag_keys(
-            self, keys: list[str]
-        ) -> dict[str, Experiment]:
-            return {}
-
-        async def save(self, experiment: Experiment) -> None:
-            pass
-
-        async def get_by_id(self, experiment_id):
-            return None
-
-        async def get_by_ids(self, ids: list) -> dict:
-            return {}
-
-        async def list_all(
-            self, flag_key=None, status=None
-        ) -> list[Experiment]:
-            return []
-
-    repo = LearningsRepository(
-        opensearch=FakeOpenSearch(),
-        experiments_repository=FakeExperimentsRepo(),
-    )
+    repo = LearningsRepository(opensearch=FakeOpenSearch())
     exp = _make_completed_experiment()
 
     await repo.save(exp)
@@ -118,6 +88,8 @@ async def test_save_indexes_completed_experiment() -> None:
     assert doc["target_metric_key"] == "ctr"
     assert "B won, rolling out" in doc["search_text"]
     assert doc["comment"] == "B won, rolling out"
+    assert "experiment_snapshot" in doc
+    assert doc["experiment_snapshot"]["name"] == "Test button color"
 
 
 @pytest.mark.asyncio
@@ -139,35 +111,7 @@ async def test_save_skips_non_completed_experiment() -> None:
         ) -> None:
             indexed.append((id, body))
 
-    class FakeExperimentsRepo(ExperimentsRepositoryPort):
-        async def get_active_by_flag_key(
-            self, flag_key: str
-        ) -> Experiment | None:
-            return None
-
-        async def get_active_by_flag_keys(
-            self, keys: list[str]
-        ) -> dict[str, Experiment]:
-            return {}
-
-        async def save(self, experiment: Experiment) -> None:
-            pass
-
-        async def get_by_id(self, experiment_id):
-            return None
-
-        async def get_by_ids(self, ids: list) -> dict:
-            return {}
-
-        async def list_all(
-            self, flag_key=None, status=None
-        ) -> list[Experiment]:
-            return []
-
-    repo = LearningsRepository(
-        opensearch=FakeOpenSearch(),
-        experiments_repository=FakeExperimentsRepo(),
-    )
+    repo = LearningsRepository(opensearch=FakeOpenSearch())
     v_control = _make_variant("control", 0.1, is_control=True)
     v_b = _make_variant("B", 0.1)
     exp = Experiment(
@@ -203,49 +147,20 @@ async def test_save_no_op_when_client_is_none() -> None:
         def index_name(self) -> str:
             return "learnings"
 
-    class FakeExperimentsRepo(ExperimentsRepositoryPort):
-        async def get_active_by_flag_key(
-            self, flag_key: str
-        ) -> Experiment | None:
-            return None
-
-        async def get_active_by_flag_keys(
-            self, keys: list[str]
-        ) -> dict[str, Experiment]:
-            return {}
-
-        async def save(self, experiment: Experiment) -> None:
-            pass
-
-        async def get_by_id(self, experiment_id):
-            return None
-
-        async def get_by_ids(self, ids: list) -> dict:
-            return {}
-
-        async def list_all(
-            self, flag_key=None, status=None
-        ) -> list[Experiment]:
-            return []
-
-    repo = LearningsRepository(
-        opensearch=FakeOpenSearch(),
-        experiments_repository=FakeExperimentsRepo(),
-    )
+    repo = LearningsRepository(opensearch=FakeOpenSearch())
     exp = _make_completed_experiment()
 
     await repo.save(exp)
 
-    # No exception, and we have no way to observe "no index call" except via the FakeOpenSearch not having index called - already tested by not having any list to append to. So this test just ensures no raise when client is None.
-
 
 @pytest.mark.asyncio
-async def test_get_similar_returns_experiments_from_repo() -> None:
-    """get_similar() builds query and returns experiments from get_by_ids."""
+async def test_get_similar_maps_docs_to_experiments() -> None:
+    """get_similar() returns experiments mapped from _source experiment_snapshot."""
     search_body: list[dict] = []
     exp1 = _make_completed_experiment()
     exp2 = _make_completed_experiment()
-    hit_ids = [str(exp1.id), str(exp2.id)]
+    doc1 = _experiment_to_doc(exp1)
+    doc2 = _experiment_to_doc(exp2)
 
     class FakeOpenSearch:
         @property
@@ -260,43 +175,14 @@ async def test_get_similar_returns_experiments_from_repo() -> None:
             search_body.append(body)
             return {
                 "hits": {
-                    "hits": [{"_id": hit_id} for hit_id in hit_ids],
+                    "hits": [
+                        {"_id": str(exp1.id), "_source": doc1},
+                        {"_id": str(exp2.id), "_source": doc2},
+                    ],
                 }
             }
 
-    class FakeExperimentsRepo(ExperimentsRepositoryPort):
-        async def get_active_by_flag_key(
-            self, flag_key: str
-        ) -> Experiment | None:
-            return None
-
-        async def get_active_by_flag_keys(
-            self, keys: list[str]
-        ) -> dict[str, Experiment]:
-            return {}
-
-        async def save(self, experiment: Experiment) -> None:
-            pass
-
-        async def get_by_id(self, experiment_id):
-            return None
-
-        async def get_by_ids(self, ids: list) -> dict:
-            by_id = {}
-            for e in (exp1, exp2):
-                if e.id in ids:
-                    by_id[e.id] = e
-            return by_id
-
-        async def list_all(
-            self, flag_key=None, status=None
-        ) -> list[Experiment]:
-            return []
-
-    repo = LearningsRepository(
-        opensearch=FakeOpenSearch(),
-        experiments_repository=FakeExperimentsRepo(),
-    )
+    repo = LearningsRepository(opensearch=FakeOpenSearch())
     criteria = GetSimilarCriteria(
         query="button",
         flag_key="button_color",
@@ -309,8 +195,10 @@ async def test_get_similar_returns_experiments_from_repo() -> None:
     assert search_body[0]["size"] == 10
     assert "query" in search_body[0]
     assert len(result) == 2
-    assert result[0] in (exp1, exp2)
-    assert result[1] in (exp1, exp2)
+    assert result[0].id == exp1.id
+    assert result[0].name == exp1.name
+    assert result[1].id == exp2.id
+    assert result[1].name == exp2.name
 
 
 @pytest.mark.asyncio
@@ -326,35 +214,7 @@ async def test_get_similar_returns_empty_when_client_is_none() -> None:
         def index_name(self) -> str:
             return "learnings"
 
-    class FakeExperimentsRepo(ExperimentsRepositoryPort):
-        async def get_active_by_flag_key(
-            self, flag_key: str
-        ) -> Experiment | None:
-            return None
-
-        async def get_active_by_flag_keys(
-            self, keys: list[str]
-        ) -> dict[str, Experiment]:
-            return {}
-
-        async def save(self, experiment: Experiment) -> None:
-            pass
-
-        async def get_by_id(self, experiment_id):
-            return None
-
-        async def get_by_ids(self, ids: list) -> dict:
-            return {}
-
-        async def list_all(
-            self, flag_key=None, status=None
-        ) -> list[Experiment]:
-            return []
-
-    repo = LearningsRepository(
-        opensearch=FakeOpenSearch(),
-        experiments_repository=FakeExperimentsRepo(),
-    )
+    repo = LearningsRepository(opensearch=FakeOpenSearch())
     criteria = GetSimilarCriteria(limit=5)
 
     result = await repo.get_similar(criteria)
