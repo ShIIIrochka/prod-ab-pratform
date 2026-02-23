@@ -104,6 +104,5 @@ class DomainEventPublisher:
             await self._dispatcher.dispatch(notif_event)
 
     async def publish_from(self, aggregate: HasDomainEvents) -> None:
-        """Flush and publish all domain events accumulated on an aggregate."""
         for event in aggregate.pop_domain_events():
             await self.publish(event)

@@ -5,20 +5,29 @@ from fastapi import APIRouter, Depends, Security, status
 
 from src.application.dto.notifications import (
     ChannelConfigResponse,
+    ConnectSlackRequest,
+    ConnectTelegramRequest,
     CreateChannelConfigRequest,
     CreateNotificationRuleRequest,
     NotificationDeliveryResponse,
     NotificationRuleResponse,
     UpdateNotificationRuleRequest,
+    mask_webhook_url_for_response,
 )
 from src.application.dto.user import UserResponse
 from src.application.usecases import (
+    ConnectSlackUseCase,
+    ConnectTelegramUseCase,
     CreateChannelConfigUseCase,
     CreateNotificationRuleUseCase,
+    DeleteChannelConfigUseCase,
     ListChannelConfigsUseCase,
     ListNotificationDeliveriesUseCase,
     ListNotificationRulesUseCase,
     UpdateNotificationRuleUseCase,
+)
+from src.domain.value_objects.notification_channel_type import (
+    NotificationChannelType,
 )
 from src.domain.value_objects.user_role import UserRole
 from src.presentation.rest.dependencies import Container, require_roles
@@ -50,6 +59,85 @@ async def create_channel_config(
         enabled=data.enabled,
     )
     return ChannelConfigResponse.model_validate(config)
+
+
+@router.post(
+    "/telegram/connect",
+    response_model=ChannelConfigResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def connect_telegram(
+    data: ConnectTelegramRequest,
+    container: Container,
+    _: Annotated[UserResponse, Depends(require_roles([UserRole.ADMIN]))],
+) -> ChannelConfigResponse:
+    use_case = container.resolve(ConnectTelegramUseCase)
+    config = await use_case.execute(
+        name=data.name,
+        bot_token=data.bot_token,
+        chat_id=data.chat_id,
+    )
+    return ChannelConfigResponse(
+        id=config.id,
+        type=config.type,
+        name=config.name,
+        webhook_url=mask_webhook_url_for_response(
+            config.webhook_url, NotificationChannelType.TELEGRAM
+        ),
+        enabled=config.enabled,
+        created_at=config.created_at,
+    )
+
+
+@router.delete("/telegram/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_telegram(
+    config_id: UUID,
+    container: Container,
+    _: Annotated[UserResponse, Depends(require_roles([UserRole.ADMIN]))],
+) -> None:
+    use_case = container.resolve(DeleteChannelConfigUseCase)
+    await use_case.execute(
+        config_id, expected_type=NotificationChannelType.TELEGRAM
+    )
+
+
+@router.post(
+    "/slack/connect",
+    response_model=ChannelConfigResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def connect_slack(
+    data: ConnectSlackRequest,
+    container: Container,
+    _: Annotated[UserResponse, Depends(require_roles([UserRole.ADMIN]))],
+) -> ChannelConfigResponse:
+    use_case = container.resolve(ConnectSlackUseCase)
+    config = await use_case.execute(
+        name=data.name,
+        webhook_url=data.webhook_url,
+    )
+    return ChannelConfigResponse(
+        id=config.id,
+        type=config.type,
+        name=config.name,
+        webhook_url=mask_webhook_url_for_response(
+            config.webhook_url, NotificationChannelType.SLACK
+        ),
+        enabled=config.enabled,
+        created_at=config.created_at,
+    )
+
+
+@router.delete("/slack/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect_slack(
+    config_id: UUID,
+    container: Container,
+    _: Annotated[UserResponse, Depends(require_roles([UserRole.ADMIN]))],
+) -> None:
+    use_case = container.resolve(DeleteChannelConfigUseCase)
+    await use_case.execute(
+        config_id, expected_type=NotificationChannelType.SLACK
+    )
 
 
 @router.get("/channel-configs", response_model=list[ChannelConfigResponse])

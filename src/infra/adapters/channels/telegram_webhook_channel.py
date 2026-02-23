@@ -27,9 +27,17 @@ class TelegramWebhookChannel(NotificationChannelPort):
     """
 
     async def send(self, message: str, webhook_url: str) -> None:
-        payload = {"text": message, "parse_mode": "Markdown"}
+        payload = {
+            "text": message,
+            "chat_id": webhook_url.split("chat_id=")[1],
+            "parse_mode": "Markdown",
+        }
         async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
-            response = await client.post(webhook_url, json=payload)
+            response = await client.post(
+                webhook_url.split("chat_id=")[0],
+                headers={"Content-Type": "application/json"},
+                json=payload,
+            )
             response.raise_for_status()
             logger.info(
                 "Telegram notification sent to webhook (status=%d)",

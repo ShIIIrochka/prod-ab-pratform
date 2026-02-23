@@ -1,7 +1,9 @@
+import re
+
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.domain.value_objects.notification_channel_type import (
     NotificationChannelType,
@@ -11,11 +13,35 @@ from src.domain.value_objects.notification_delivery_status import (
 )
 
 
+def mask_webhook_url_for_response(
+    webhook_url: str, channel_type: NotificationChannelType
+) -> str:
+    """Mask sensitive parts of webhook_url in API responses."""
+    if channel_type == NotificationChannelType.TELEGRAM:
+        return re.sub(r"bot[^/]+", "bot***", webhook_url)
+    if channel_type == NotificationChannelType.SLACK and webhook_url.startswith(
+        "https://hooks.slack.com/"
+    ):
+        return "https://hooks.slack.com/services/***/***/***"
+    return webhook_url
+
+
 class CreateChannelConfigRequest(BaseModel):
     type: NotificationChannelType
     name: str
     webhook_url: str
     enabled: bool = True
+
+
+class ConnectTelegramRequest(BaseModel):
+    name: str
+    bot_token: str = Field(min_length=1)
+    chat_id: str = Field(min_length=1)
+
+
+class ConnectSlackRequest(BaseModel):
+    name: str
+    webhook_url: str = Field(min_length=1)
 
 
 class ChannelConfigResponse(BaseModel):

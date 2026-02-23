@@ -44,8 +44,17 @@ from src.application.usecases.event_type.list import ListEventTypesUseCase
 from src.application.usecases.events.send import SendEventsUseCase
 from src.application.usecases.user.create import CreateUserUseCase
 from src.application.usecases.user.get_by_id import GetUserByIdUseCase
+from src.application.usecases.notifications.connect_slack import (
+    ConnectSlackUseCase,
+)
+from src.application.usecases.notifications.connect_telegram import (
+    ConnectTelegramUseCase,
+)
 from src.application.usecases.notifications.create_channel_config import (
     CreateChannelConfigUseCase,
+)
+from src.application.usecases.notifications.delete_channel_config import (
+    DeleteChannelConfigUseCase,
 )
 from src.application.usecases.notifications.create_rule import (
     CreateNotificationRuleUseCase,

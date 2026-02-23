@@ -85,11 +85,20 @@ from src.application.usecases.guardrails.check_guardrails import (
 from src.application.usecases.metrics.create import CreateMetricUseCase
 from src.application.usecases.metrics.get import GetMetricUseCase
 from src.application.usecases.metrics.list import ListMetricsUseCase
+from src.application.usecases.notifications.connect_slack import (
+    ConnectSlackUseCase,
+)
+from src.application.usecases.notifications.connect_telegram import (
+    ConnectTelegramUseCase,
+)
 from src.application.usecases.notifications.create_channel_config import (
     CreateChannelConfigUseCase,
 )
 from src.application.usecases.notifications.create_rule import (
     CreateNotificationRuleUseCase,
+)
+from src.application.usecases.notifications.delete_channel_config import (
+    DeleteChannelConfigUseCase,
 )
 from src.application.usecases.notifications.list_channel_configs import (
     ListChannelConfigsUseCase,
@@ -247,6 +256,9 @@ def create_container() -> Container:
     container.register(DomainEventPublisher)
 
     container.register(CreateChannelConfigUseCase)
+    container.register(ConnectTelegramUseCase)
+    container.register(ConnectSlackUseCase)
+    container.register(DeleteChannelConfigUseCase)
     container.register(ListChannelConfigsUseCase)
     container.register(CreateNotificationRuleUseCase)
     container.register(ListNotificationRulesUseCase)

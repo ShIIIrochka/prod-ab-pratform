@@ -5,6 +5,7 @@ from starlette.responses import JSONResponse
 
 from src.domain.exceptions import (
     CannotReviewExperimentError,
+    ChannelConfigNotFoundError,
     CouldNotAuthorizeError,
     DuplicateVariantNamesError,
     EventTypeAlreadyExistsError,
@@ -145,4 +146,13 @@ def setup_exc_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"message": str(exc)},
+        )
+
+    @app.exception_handler(ChannelConfigNotFoundError)
+    async def channel_config_not_found_exception_handler(
+        request: Request, exc: ChannelConfigNotFoundError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"message": exc.message},
         )

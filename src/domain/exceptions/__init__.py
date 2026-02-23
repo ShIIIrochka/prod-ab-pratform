@@ -14,6 +14,7 @@ from .events import EventTypeAlreadyExistsError, EventTypeNotFoundError
 from .auth import CouldNotAuthorizeError
 from .feature_flags import FeatureFlagAlreadyExistsError
 from .metrics import MetricNotFoundError
+from .notifications import ChannelConfigNotFoundError
 
 
 @dataclass

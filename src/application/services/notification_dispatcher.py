@@ -35,10 +35,9 @@ class NotificationDispatcher:
 
         if not inserted:
             logger.debug(
-                "Notification event %s already processed, skipping",
+                "Notification event %s already in store (dedup), enqueueing task anyway for delivery",
                 event.event_id,
             )
-            return
 
         try:
             self._task_enqueuer.enqueue(event.event_id)

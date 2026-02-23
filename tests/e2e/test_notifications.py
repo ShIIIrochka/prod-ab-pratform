@@ -206,3 +206,124 @@ async def test_create_channel_config_unauthenticated(
         },
     )
     assert r.status_code == 401, r.text
+
+
+# ── Connect / Disconnect routes ───────────────────────────────────────────────
+
+
+async def test_connect_telegram(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    r = await client.post(
+        "/notifications/telegram/connect",
+        json={
+            "name": "Team Telegram",
+            "bot_token": "123456:ABC-DEF",
+            "chat_id": "-1001234567890",
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 201, r.text
+    data = r.json()
+    assert data["type"] == "telegram"
+    assert data["name"] == "Team Telegram"
+    assert "id" in data
+    assert "bot***" in data["webhook_url"] or "***" in data["webhook_url"]
+    assert "123456:ABC-DEF" not in data["webhook_url"]
+
+
+async def test_connect_slack(client: AsyncClient, auth_headers: dict) -> None:
+    r = await client.post(
+        "/notifications/slack/connect",
+        json={
+            "name": "Team Slack",
+            "webhook_url": "https://hooks.slack.com/services/T00/B00/xxx",
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 201, r.text
+    data = r.json()
+    assert data["type"] == "slack"
+    assert data["name"] == "Team Slack"
+    assert "id" in data
+    assert "xxx" not in data["webhook_url"]
+
+
+async def test_disconnect_telegram(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    connect_r = await client.post(
+        "/notifications/telegram/connect",
+        json={
+            "name": "TG to disconnect",
+            "bot_token": "token",
+            "chat_id": "123",
+        },
+        headers=auth_headers,
+    )
+    assert connect_r.status_code == 201
+    config_id = connect_r.json()["id"]
+
+    r = await client.delete(
+        f"/notifications/telegram/{config_id}",
+        headers=auth_headers,
+    )
+    assert r.status_code == 204, r.text
+
+    list_r = await client.get(
+        "/notifications/channel-configs",
+        headers=auth_headers,
+    )
+    assert list_r.status_code == 200
+    ids = [c["id"] for c in list_r.json()]
+    assert config_id not in ids
+
+
+async def test_disconnect_slack(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    connect_r = await client.post(
+        "/notifications/slack/connect",
+        json={
+            "name": "Slack to disconnect",
+            "webhook_url": "https://hooks.slack.com/services/a/b/c",
+        },
+        headers=auth_headers,
+    )
+    assert connect_r.status_code == 201
+    config_id = connect_r.json()["id"]
+
+    r = await client.delete(
+        f"/notifications/slack/{config_id}",
+        headers=auth_headers,
+    )
+    assert r.status_code == 204, r.text
+
+    list_r = await client.get(
+        "/notifications/channel-configs",
+        headers=auth_headers,
+    )
+    assert list_r.status_code == 200
+    ids = [c["id"] for c in list_r.json()]
+    assert config_id not in ids
+
+
+async def test_disconnect_telegram_with_slack_config_returns_404(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    connect_r = await client.post(
+        "/notifications/slack/connect",
+        json={
+            "name": "Slack config",
+            "webhook_url": "https://hooks.slack.com/services/x/y/z",
+        },
+        headers=auth_headers,
+    )
+    assert connect_r.status_code == 201
+    slack_config_id = connect_r.json()["id"]
+
+    r = await client.delete(
+        f"/notifications/telegram/{slack_config_id}",
+        headers=auth_headers,
+    )
+    assert r.status_code == 404, r.text

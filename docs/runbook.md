@@ -155,10 +155,52 @@ services:
 
 After the API and Celery worker are running:
 
-### 1. Create a Channel Config
+### 1. Connect a Channel
+
+**Telegram** — provide bot token (from [@BotFather](https://t.me/BotFather)) and chat/group ID:
 
 ```bash
-# Slack webhook
+curl -X POST http://localhost:8000/notifications/telegram/connect \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Team Telegram",
+    "bot_token": "YOUR_BOT_TOKEN",
+    "chat_id": "-1001234567890"
+  }'
+```
+
+To get `chat_id`: add the bot to the group/channel, send a message, then call `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `chat.id` from the response.
+
+**Slack** — provide Incoming Webhook URL (from Slack app settings → Incoming Webhooks → Add to Workspace):
+
+```bash
+curl -X POST http://localhost:8000/notifications/slack/connect \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Team Alerts",
+    "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  }'
+```
+
+**Disconnect** (removes channel config and all associated rules):
+
+```bash
+# Telegram
+curl -X DELETE "http://localhost:8000/notifications/telegram/{config_id}" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Slack
+curl -X DELETE "http://localhost:8000/notifications/slack/{config_id}" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 2. Legacy: Create a Channel Config (generic)
+
+Use the generic endpoint if you prefer to pass the full webhook URL directly:
+
+```bash
 curl -X POST http://localhost:8000/notifications/channel-configs \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
@@ -170,7 +212,7 @@ curl -X POST http://localhost:8000/notifications/channel-configs \
   }'
 ```
 
-### 2. Create a Notification Rule
+### 3. Create a Notification Rule
 
 ```bash
 # Notify on all guardrail triggers
@@ -196,7 +238,7 @@ curl -X POST http://localhost:8000/notifications/rules \
   }'
 ```
 
-### 3. Check Delivery History
+### 4. Check Delivery History
 
 ```bash
 curl -X GET "http://localhost:8000/notifications/deliveries?limit=20" \

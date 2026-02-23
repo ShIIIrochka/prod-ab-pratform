@@ -6,11 +6,20 @@ from uuid import uuid4
 
 import pytest
 
+from src.application.usecases.notifications.connect_slack import (
+    ConnectSlackUseCase,
+)
+from src.application.usecases.notifications.connect_telegram import (
+    ConnectTelegramUseCase,
+)
 from src.application.usecases.notifications.create_channel_config import (
     CreateChannelConfigUseCase,
 )
 from src.application.usecases.notifications.create_rule import (
     CreateNotificationRuleUseCase,
+)
+from src.application.usecases.notifications.delete_channel_config import (
+    DeleteChannelConfigUseCase,
 )
 from src.application.usecases.notifications.list_channel_configs import (
     ListChannelConfigsUseCase,
@@ -23,6 +32,7 @@ from src.domain.entities.notification_channel_config import (
     new_notification_channel_config,
 )
 from src.domain.entities.notification_rule import new_notification_rule
+from src.domain.exceptions.notifications import ChannelConfigNotFoundError
 from src.domain.value_objects.notification_channel_type import (
     NotificationChannelType,
 )
@@ -91,6 +101,94 @@ async def test_create_telegram_channel_config() -> None:
     )
     assert config.type == NotificationChannelType.TELEGRAM
     assert config.enabled is False
+
+
+# ── ConnectTelegramUseCase ────────────────────────────────────────────────────
+
+
+async def test_connect_telegram_builds_correct_url() -> None:
+    repo = FakeChannelConfigsRepository()
+    uc = ConnectTelegramUseCase(repository=repo)
+
+    config = await uc.execute(
+        name="Team TG",
+        bot_token="123456:ABC-DEF",
+        chat_id="-1001234567890",
+    )
+
+    assert config.type == NotificationChannelType.TELEGRAM
+    assert config.name == "Team TG"
+    assert config.webhook_url == (
+        "https://api.telegram.org/bot123456:ABC-DEF/sendMessage"
+        "?chat_id=-1001234567890"
+    )
+    assert config.enabled is True
+    saved = await repo.get_by_id(config.id)
+    assert saved is not None
+
+
+# ── ConnectSlackUseCase ───────────────────────────────────────────────────────
+
+
+async def test_connect_slack() -> None:
+    repo = FakeChannelConfigsRepository()
+    uc = ConnectSlackUseCase(repository=repo)
+
+    config = await uc.execute(
+        name="Team Slack",
+        webhook_url="https://hooks.slack.com/services/T00/B00/xxx",
+    )
+
+    assert config.type == NotificationChannelType.SLACK
+    assert config.name == "Team Slack"
+    assert config.webhook_url == "https://hooks.slack.com/services/T00/B00/xxx"
+    assert config.enabled is True
+    saved = await repo.get_by_id(config.id)
+    assert saved is not None
+
+
+# ── DeleteChannelConfigUseCase ─────────────────────────────────────────────────
+
+
+async def test_delete_channel_config_success() -> None:
+    repo = FakeChannelConfigsRepository()
+    config = new_notification_channel_config(
+        type=NotificationChannelType.TELEGRAM,
+        name="TG",
+        webhook_url="https://api.telegram.org/bot/x/sendMessage?chat_id=1",
+    )
+    await repo.save(config)
+
+    uc = DeleteChannelConfigUseCase(repository=repo)
+    await uc.execute(config.id, expected_type=NotificationChannelType.TELEGRAM)
+
+    assert await repo.get_by_id(config.id) is None
+
+
+async def test_delete_channel_config_not_found_raises() -> None:
+    repo = FakeChannelConfigsRepository()
+    uc = DeleteChannelConfigUseCase(repository=repo)
+
+    with pytest.raises(ChannelConfigNotFoundError):
+        await uc.execute(
+            uuid4(), expected_type=NotificationChannelType.TELEGRAM
+        )
+
+
+async def test_delete_channel_config_wrong_type_raises() -> None:
+    repo = FakeChannelConfigsRepository()
+    config = new_notification_channel_config(
+        type=NotificationChannelType.SLACK,
+        name="Slack",
+        webhook_url="https://hooks.slack.com/x",
+    )
+    await repo.save(config)
+
+    uc = DeleteChannelConfigUseCase(repository=repo)
+    with pytest.raises(ChannelConfigNotFoundError):
+        await uc.execute(
+            config.id, expected_type=NotificationChannelType.TELEGRAM
+        )
 
 
 async def test_list_channel_configs_empty() -> None:
