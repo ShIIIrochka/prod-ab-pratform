@@ -71,3 +71,6 @@ from src.application.usecases.notifications.list_rules import (
 from src.application.usecases.notifications.update_rule import (
     UpdateNotificationRuleUseCase,
 )
+from src.application.usecases.learnings.get_similar_experiments import (
+    GetSimilarExperimentsUseCase,
+)

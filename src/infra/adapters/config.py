@@ -26,6 +26,11 @@ class Config:
     guardrail_check_interval_seconds: int
     notification_task_max_retries: int
     notification_task_retry_backoff_seconds: int
+    opensearch_index: str
+    opensearch_host: str
+    opensearch_port: int
+    opensearch_username: str
+    opensearch_password: str
 
     @classmethod
     def get_config(cls) -> "Config":
@@ -71,6 +76,11 @@ class Config:
                 notification_task_retry_backoff_seconds=int(
                     os.environ["NOTIFICATION_TASK_RETRY_BACKOFF_SECONDS"]
                 ),
+                opensearch_index=os.environ["OPENSEARCH_INDEX"],
+                opensearch_host=os.environ["OPENSEARCH_HOST"],
+                opensearch_port=int(os.environ["OPENSEARCH_PORT"]),
+                opensearch_username=os.environ["OPENSEARCH_USERNAME"],
+                opensearch_password=os.environ["OPENSEARCH_PASSWORD"],
             )
         except KeyError:
             raise RuntimeError("Required variables are not set")

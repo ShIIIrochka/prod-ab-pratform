@@ -4,6 +4,7 @@ from src.application.dto.experiment import CompleteExperimentRequest
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
+from src.application.ports.learnings_repository import LearningsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
 from src.application.services.domain_event_publisher import DomainEventPublisher
 from src.domain.aggregates.experiment import Experiment
@@ -16,10 +17,12 @@ class CompleteExperimentUseCase:
         experiments_repository: ExperimentsRepositoryPort,
         uow: UnitOfWorkPort,
         notification_dispatcher: DomainEventPublisher,
+        learnings_repository: LearningsRepositoryPort,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._uow = uow
         self._publisher = notification_dispatcher
+        self._learnings_repository = learnings_repository
 
     async def execute(
         self,
@@ -41,5 +44,6 @@ class CompleteExperimentUseCase:
             await self._experiments_repository.save(experiment)
 
         await self._publisher.publish_from(experiment)
+        await self._learnings_repository.save(experiment)
 
         return experiment

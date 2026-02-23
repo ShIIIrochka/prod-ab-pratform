@@ -11,6 +11,7 @@ from starlette.middleware.authentication import AuthenticationMiddleware
 from src.application.ports.jwt import JWTPort
 from src.infra.adapters.config import Config
 from src.infra.adapters.db.db import Database
+from src.infra.adapters.opensearch.opensearch import OpenSearch
 from src.infra.workers.guardrail_checker_worker import GuardrailCheckerWorker
 from src.infra.workers.pending_events_ttl_listener import (
     PendingEventsTTLListener,
@@ -31,6 +32,9 @@ from src.presentation.rest.routes import (
 from src.presentation.rest.routes.experiment_versions import (
     router as experiment_versions_router,
 )
+from src.presentation.rest.routes.learnings import (
+    router as learnings_router,
+)
 from src.presentation.rest.routes.notifications import (
     router as notifications_router,
 )
@@ -44,6 +48,9 @@ async def lifespan(_: FastAPI):
         modules={"models": ["src.infra.adapters.db.models"]},
     )
     await db.connect()
+
+    opensearch: OpenSearch = container.resolve(OpenSearch)
+    await opensearch.connect()
 
     ttl_listener: PendingEventsTTLListener = container.resolve(
         PendingEventsTTLListener
@@ -68,6 +75,8 @@ async def lifespan(_: FastAPI):
         await ttl_task
     except asyncio.CancelledError:
         pass
+
+    await opensearch.disconnect()
     await db.disconnect()
 
     redis: Redis = container.resolve(Redis)
@@ -108,5 +117,6 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(notifications_router)
     app.include_router(experiment_versions_router)
+    app.include_router(learnings_router)
 
     return app
