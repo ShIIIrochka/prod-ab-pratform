@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.domain.value_objects.guardrail_config import (
+from src.domain.entities.guardrail_config import (
     GuardrailAction,
     GuardrailConfig,
 )
@@ -43,13 +43,21 @@ def test_guardrail_config_rollback_action():
     assert config.action == GuardrailAction.ROLLBACK_TO_CONTROL
 
 
-def test_guardrail_config_is_frozen():
-    """GuardrailConfig frozen dataclass — изменение должно вызывать ошибку."""
-    config = GuardrailConfig(
+def test_guardrail_config_has_unique_id():
+    """Each GuardrailConfig instance has a unique UUID id."""
+    from uuid import UUID
+
+    c1 = GuardrailConfig(
         metric_key="error_rate",
         threshold=0.1,
         observation_window_minutes=15,
         action=GuardrailAction.PAUSE,
     )
-    with pytest.raises((AttributeError, TypeError)):
-        config.threshold = 0.5  # type: ignore
+    c2 = GuardrailConfig(
+        metric_key="error_rate",
+        threshold=0.1,
+        observation_window_minutes=15,
+        action=GuardrailAction.PAUSE,
+    )
+    assert isinstance(c1.id, UUID)
+    assert c1.id != c2.id

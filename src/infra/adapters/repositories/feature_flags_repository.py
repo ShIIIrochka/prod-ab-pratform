@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tortoise.exceptions import IntegrityError
+
 from src.application.ports.feature_flags_repository import (
     FeatureFlagsRepositoryPort,
 )
@@ -21,8 +23,15 @@ class FeatureFlagsRepository(FeatureFlagsRepositoryPort):
         return {m.key: m.to_domain() for m in models}
 
     async def save(self, flag: FeatureFlag) -> None:
+        existing_model = await FeatureFlagModel.get_or_none(key=flag.key)
         model = FeatureFlagModel.from_domain(flag)
-        await model.save()
+        try:
+            if existing_model:
+                await model.save(force_update=True)
+            else:
+                await model.save()
+        except IntegrityError:
+            raise ValueError
 
     async def list_all(self) -> list[FeatureFlag]:
         models = await FeatureFlagModel.all()

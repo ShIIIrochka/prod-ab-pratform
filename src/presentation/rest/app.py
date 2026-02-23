@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 
 from contextlib import asynccontextmanager
@@ -29,6 +27,12 @@ from src.presentation.rest.routes import (
     feature_flags,
     metrics,
     reports,
+)
+from src.presentation.rest.routes.experiment_versions import (
+    router as experiment_versions_router,
+)
+from src.presentation.rest.routes.notifications import (
+    router as notifications_router,
 )
 
 
@@ -102,5 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(event_types.router)
     app.include_router(metrics.router)
     app.include_router(reports.router)
+    app.include_router(notifications_router)
+    app.include_router(experiment_versions_router)
 
     return app

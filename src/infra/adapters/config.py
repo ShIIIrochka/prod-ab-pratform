@@ -1,8 +1,10 @@
-from __future__ import annotations
-
 import os
 
 from dataclasses import dataclass
+
+
+_DB_MODELS = ["src.infra.adapters.db.models"]
+_TORTOISE_MODULES = {"models": _DB_MODELS}
 
 
 @dataclass
@@ -14,15 +16,19 @@ class Config:
     jwt_access_expires: int
     jwt_refresh_expires: int
     redis_url: str
+    rabbitmq_url: str
     pending_events_ttl_seconds: int
     max_concurrent_experiments: int
     cooldown_period_days: int
     experiments_before_cooldown: int
     cooldown_experiment_probability: float
     rotation_period_days: int
+    guardrail_check_interval_seconds: int
+    notification_task_max_retries: int
+    notification_task_retry_backoff_seconds: int
 
     @classmethod
-    def get_config(cls) -> Config:
+    def get_config(cls) -> "Config":
         try:
             host = os.environ["DB_HOST"]
             port = os.environ["DB_PORT"]
@@ -39,9 +45,12 @@ class Config:
                 redis_url=os.environ.get(
                     "REDIS_URL", "redis://localhost:6379/0"
                 ),
+                rabbitmq_url=os.environ.get(
+                    "RABBITMQ_URL", "amqp://guest:guest@localhost:5672//"
+                ),
                 pending_events_ttl_seconds=int(
-                    os.environ.get("PENDING_EVENTS_TTL", "604800")
-                ),  # 7 дней по умолчанию
+                    os.environ["PENDING_EVENTS_TTL"]
+                ),
                 max_concurrent_experiments=int(
                     os.environ["MAX_CONCURRENT_EXPERIMENTS"]
                 ),
@@ -53,6 +62,15 @@ class Config:
                     os.environ["COOLDOWN_PROBABILITY"]
                 ),
                 rotation_period_days=int(os.environ["ROTATION_DAYS"]),
+                guardrail_check_interval_seconds=int(
+                    os.environ["GUARDRAIL_CHECK_INTERVAL_SECONDS"]
+                ),
+                notification_task_max_retries=int(
+                    os.environ["NOTIFICATION_TASK_MAX_RETRIES"]
+                ),
+                notification_task_retry_backoff_seconds=int(
+                    os.environ["NOTIFICATION_TASK_RETRY_BACKOFF_SECONDS"]
+                ),
             )
         except KeyError:
             raise RuntimeError("Required variables are not set")

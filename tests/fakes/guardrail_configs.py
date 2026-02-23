@@ -7,7 +7,7 @@ from uuid import UUID
 from src.application.ports.guardrail_configs_repository import (
     GuardrailConfigsRepositoryPort,
 )
-from src.domain.value_objects.guardrail_config import GuardrailConfig
+from src.domain.entities.guardrail_config import GuardrailConfig
 
 
 class FakeGuardrailConfigsRepository(GuardrailConfigsRepositoryPort):

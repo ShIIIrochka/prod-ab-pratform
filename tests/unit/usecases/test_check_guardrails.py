@@ -1,5 +1,3 @@
-"""Unit tests for CheckGuardrailsUseCase with fake repositories (no mocks)."""
-
 from __future__ import annotations
 
 from uuid import uuid4
@@ -11,12 +9,12 @@ from src.application.usecases.guardrails.check_guardrails import (
 )
 from src.domain.aggregates.experiment import Experiment
 from src.domain.aggregates.metric import Metric
-from src.domain.entities.variant import Variant
-from src.domain.value_objects.experiment_status import ExperimentStatus
-from src.domain.value_objects.guardrail_config import (
+from src.domain.entities.guardrail_config import (
     GuardrailAction,
     GuardrailConfig,
 )
+from src.domain.entities.variant import Variant
+from src.domain.value_objects.experiment_status import ExperimentStatus
 from tests.fakes import (
     FakeExperimentsRepository,
     FakeGuardrailConfigsRepository,
@@ -25,6 +23,7 @@ from tests.fakes import (
     FakeMetricsRepository,
     FakeUnitOfWork,
 )
+from tests.fakes.domain_event_publisher import FakeDomainEventPublisher
 
 
 def _make_experiment(
@@ -72,6 +71,7 @@ async def test_no_running_experiments_noop() -> None:
         metrics_repository=FakeMetricsRepository(),
         metric_aggregator=FakeMetricAggregator(),
         uow=FakeUnitOfWork(),
+        notification_dispatcher=FakeDomainEventPublisher(),
     )
     await use_case.execute()
 
@@ -118,6 +118,7 @@ async def test_guardrail_triggers_pause_when_threshold_exceeded() -> None:
         metrics_repository=metrics_repo,
         metric_aggregator=metric_aggregator,
         uow=FakeUnitOfWork(),
+        notification_dispatcher=FakeDomainEventPublisher(),
     )
     await use_case.execute()
 
@@ -173,6 +174,7 @@ async def test_guardrail_no_trigger_below_threshold() -> None:
         metrics_repository=metrics_repo,
         metric_aggregator=metric_aggregator,
         uow=FakeUnitOfWork(),
+        notification_dispatcher=FakeDomainEventPublisher(),
     )
     await use_case.execute()
 
@@ -212,6 +214,7 @@ async def test_guardrail_skips_missing_metric() -> None:
         metrics_repository=metrics_repo,
         metric_aggregator=metric_aggregator,
         uow=FakeUnitOfWork(),
+        notification_dispatcher=FakeDomainEventPublisher(),
     )
     await use_case.execute()
 
@@ -235,6 +238,7 @@ async def test_single_query_for_all_running_experiments() -> None:
         metrics_repository=FakeMetricsRepository(),
         metric_aggregator=FakeMetricAggregator(),
         uow=FakeUnitOfWork(),
+        notification_dispatcher=FakeDomainEventPublisher(),
     )
     await use_case.execute()
 

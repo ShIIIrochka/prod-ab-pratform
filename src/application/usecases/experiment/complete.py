@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from uuid import UUID
 
 from src.application.dto.experiment import CompleteExperimentRequest
@@ -7,6 +5,7 @@ from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
 from src.application.ports.uow import UnitOfWorkPort
+from src.application.services.domain_event_publisher import DomainEventPublisher
 from src.domain.aggregates.experiment import Experiment
 from src.domain.exceptions.decision import ExperimentNotFoundError
 
@@ -16,9 +15,11 @@ class CompleteExperimentUseCase:
         self,
         experiments_repository: ExperimentsRepositoryPort,
         uow: UnitOfWorkPort,
+        notification_dispatcher: DomainEventPublisher,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._uow = uow
+        self._publisher = notification_dispatcher
 
     async def execute(
         self,
@@ -38,4 +39,7 @@ class CompleteExperimentUseCase:
         )
         async with self._uow:
             await self._experiments_repository.save(experiment)
+
+        await self._publisher.publish_from(experiment)
+
         return experiment

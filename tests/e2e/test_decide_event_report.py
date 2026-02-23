@@ -646,20 +646,16 @@ async def test_report_variants_differ_when_only_one_has_events(
     )
     await client.post(f"/experiments/{exp_id}/launch", headers=auth_headers)
 
-    from icecream import ic
-
-    ic(
-        (
-            await client.post(
-                "/decide",
-                json={
-                    "subject_id": "alice-diff",
-                    "flag_keys": [flag_key],
-                    "attributes": {},
-                },
-            )
-        ).json()
-    )
+    (
+        await client.post(
+            "/decide",
+            json={
+                "subject_id": "alice-diff",
+                "flag_keys": [flag_key],
+                "attributes": {},
+            },
+        )
+    ).json()
 
     alice_dec = (
         await client.post(

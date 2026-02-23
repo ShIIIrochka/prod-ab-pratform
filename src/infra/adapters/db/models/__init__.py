@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.infra.adapters.db.models.approval import ApprovalModel
 from src.infra.adapters.db.models.decision import DecisionModel
 from src.infra.adapters.db.models.experiment import ExperimentModel
+from src.infra.adapters.db.models.experiment_version import ExperimentVersionModel
 from src.infra.adapters.db.models.feature_flag import FeatureFlagModel
 from src.infra.adapters.db.models.guardrail_config import GuardrailConfigModel
 from src.infra.adapters.db.models.guardrail_trigger import GuardrailTriggerModel
@@ -11,3 +12,7 @@ from src.infra.adapters.db.models.variant import VariantModel
 from src.infra.adapters.db.models.event import EventModel
 from src.infra.adapters.db.models.event_type import EventTypeModel
 from src.infra.adapters.db.models.metric import MetricModel
+from src.infra.adapters.db.models.notification_channel_config import NotificationChannelConfigModel
+from src.infra.adapters.db.models.notification_rule import NotificationRuleModel
+from src.infra.adapters.db.models.notification_event import NotificationEventModel
+from src.infra.adapters.db.models.notification_delivery import NotificationDeliveryModel

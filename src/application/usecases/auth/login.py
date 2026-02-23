@@ -6,7 +6,7 @@ from src.application.dto.auth import (
 from src.application.ports.jwt import JWTPort
 from src.application.ports.password_hasher import PasswordHasherPort
 from src.application.ports.users_repository import UsersRepositoryPort
-from src.domain.exceptions.users import UserNotFoundError
+from src.domain.exceptions.auth import CouldNotAuthorizeError
 from src.domain.value_objects.jwt import JWTPayload, Tokens
 
 
@@ -26,7 +26,7 @@ class LoginUseCase:
         if not user or not self._password_hasher.verify(
             data.password, user.password
         ):
-            raise UserNotFoundError
+            raise CouldNotAuthorizeError
 
         payload = JWTPayload.make_payload(role=user.role, user_id=user.id)
 

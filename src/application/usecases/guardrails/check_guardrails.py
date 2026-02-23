@@ -1,15 +1,3 @@
-"""
-Один запрос: все RUNNING-эксперименты + guardrail-конфиги (get_for_running_experiments).
-Для каждого эксперимента:
-  Для каждого guardrail-правила:
-    1. Прочитать агрегаты из Redis (MetricAggregator.get_value) — без SQL-запроса.
-    2. Если значение > порога → сработал guardrail:
-       - Выполнить action (PAUSE или ROLLBACK_TO_CONTROL)
-       - Записать GuardrailTrigger в историю
-"""
-
-from __future__ import annotations
-
 import logging
 
 from datetime import UTC, datetime
@@ -26,7 +14,9 @@ from src.application.ports.guardrail_triggers_repository import (
 from src.application.ports.metric_aggregator import MetricAggregatorPort
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
+from src.application.services.domain_event_publisher import DomainEventPublisher
 from src.domain.entities.guardrail_config import GuardrailAction
+from src.domain.events.experiment import GuardrailTriggered
 from src.domain.value_objects.guardrail_trigger import GuardrailTrigger
 
 
@@ -42,6 +32,7 @@ class CheckGuardrailsUseCase:
         metrics_repository: MetricsRepositoryPort,
         metric_aggregator: MetricAggregatorPort,
         uow: UnitOfWorkPort,
+        notification_dispatcher: DomainEventPublisher,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._guardrail_configs_repository = guardrail_configs_repository
@@ -49,6 +40,7 @@ class CheckGuardrailsUseCase:
         self._metrics_repository = metrics_repository
         self._metric_aggregator = metric_aggregator
         self._uow = uow
+        self._publisher = notification_dispatcher
 
     async def execute(self) -> None:
         configs_by_experiment = await self._guardrail_configs_repository.get_for_running_experiments()
@@ -117,6 +109,21 @@ class CheckGuardrailsUseCase:
                         experiment.activate_rollback_to_control()
 
                     await self._experiments_repository.save(experiment)
+
+                domain_event = GuardrailTriggered(
+                    experiment_id=experiment_id,
+                    experiment_name=experiment.name,
+                    flag_key=experiment.flag_key,
+                    owner_id=experiment.owner_id,
+                    metric_key=config.metric_key,
+                    threshold=config.threshold,
+                    actual_value=actual_value,
+                    action=config.action.value,
+                    triggered_at=now,
+                    version=experiment.version,
+                )
+                await self._publisher.publish(domain_event)
+                await self._publisher.publish_from(experiment)
 
                 if config.action == GuardrailAction.PAUSE:
                     break

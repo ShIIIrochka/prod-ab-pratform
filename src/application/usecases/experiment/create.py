@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from src.application.dto.experiment import ExperimentCreateRequest
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,

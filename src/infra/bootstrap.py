@@ -9,6 +9,9 @@ from src.application.ports.event_types_repository import (
 )
 from src.application.ports.event_validator import EventValidatorPort
 from src.application.ports.events_repository import EventsRepositoryPort
+from src.application.ports.experiment_versions_repository import (
+    ExperimentVersionsRepositoryPort,
+)
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
@@ -24,10 +27,32 @@ from src.application.ports.guardrail_triggers_repository import (
 from src.application.ports.jwt import JWTPort
 from src.application.ports.metric_aggregator import MetricAggregatorPort
 from src.application.ports.metrics_repository import MetricsRepositoryPort
+from src.application.ports.notification_channel_configs_repository import (
+    NotificationChannelConfigsRepositoryPort,
+)
+from src.application.ports.notification_deliveries_repository import (
+    NotificationDeliveriesRepositoryPort,
+)
+from src.application.ports.notification_events_repository import (
+    NotificationEventsRepositoryPort,
+)
+from src.application.ports.notification_rate_limiter import (
+    NotificationRateLimiterPort,
+)
+from src.application.ports.notification_rules_repository import (
+    NotificationRulesRepositoryPort,
+)
+from src.application.ports.notification_task_enqueuer import (
+    NotificationTaskEnqueuerPort,
+)
 from src.application.ports.password_hasher import PasswordHasherPort
 from src.application.ports.pending_events_store import PendingEventsStorePort
 from src.application.ports.uow import UnitOfWorkPort
 from src.application.ports.users_repository import UsersRepositoryPort
+from src.application.services.domain_event_publisher import DomainEventPublisher
+from src.application.services.notification_dispatcher import (
+    NotificationDispatcher,
+)
 from src.application.usecases import (
     ApproveExperimentUseCase,
     ArchiveExperimentUseCase,
@@ -60,6 +85,24 @@ from src.application.usecases.guardrails.check_guardrails import (
 from src.application.usecases.metrics.create import CreateMetricUseCase
 from src.application.usecases.metrics.get import GetMetricUseCase
 from src.application.usecases.metrics.list import ListMetricsUseCase
+from src.application.usecases.notifications.create_channel_config import (
+    CreateChannelConfigUseCase,
+)
+from src.application.usecases.notifications.create_rule import (
+    CreateNotificationRuleUseCase,
+)
+from src.application.usecases.notifications.list_channel_configs import (
+    ListChannelConfigsUseCase,
+)
+from src.application.usecases.notifications.list_deliveries import (
+    ListNotificationDeliveriesUseCase,
+)
+from src.application.usecases.notifications.list_rules import (
+    ListNotificationRulesUseCase,
+)
+from src.application.usecases.notifications.update_rule import (
+    UpdateNotificationRuleUseCase,
+)
 from src.application.usecases.reports.get_experiment_report import (
     GetExperimentReportUseCase,
 )
@@ -78,6 +121,24 @@ from src.infra.adapters.repositories import (
     MetricsRepository,
     UserRepository,
 )
+from src.infra.adapters.repositories.experiment_versions_repository import (
+    ExperimentVersionsRepository,
+)
+from src.infra.adapters.repositories.notification_channel_configs_repository import (
+    NotificationChannelConfigsRepository,
+)
+from src.infra.adapters.repositories.notification_deliveries_repository import (
+    NotificationDeliveriesRepository,
+)
+from src.infra.adapters.repositories.notification_events_repository import (
+    NotificationEventsRepository,
+)
+from src.infra.adapters.repositories.notification_rules_repository import (
+    NotificationRulesRepository,
+)
+from src.infra.adapters.services.celery_notification_task_enqueuer import (
+    CeleryNotificationTaskEnqueuer,
+)
 from src.infra.adapters.services.event_id_generator import EventIdGenerator
 from src.infra.adapters.services.event_validator import PydanticEventValidator
 from src.infra.adapters.services.pending_events_store import (
@@ -85,6 +146,9 @@ from src.infra.adapters.services.pending_events_store import (
 )
 from src.infra.adapters.services.redis_metric_aggregator import (
     RedisMetricAggregator,
+)
+from src.infra.adapters.services.redis_notification_rate_limiter import (
+    RedisNotificationRateLimiter,
 )
 from src.infra.workers.guardrail_checker_worker import GuardrailCheckerWorker
 from src.infra.workers.pending_events_ttl_listener import (
@@ -134,6 +198,9 @@ def create_container() -> Container:
     container.register(
         GuardrailTriggersRepositoryPort, GuardrailTriggersRepository
     )
+    container.register(
+        ExperimentVersionsRepositoryPort, ExperimentVersionsRepository
+    )
 
     redis_client = Redis.from_url(config.redis_url, decode_responses=True)
     container.register(Redis, instance=redis_client)
@@ -154,6 +221,37 @@ def create_container() -> Container:
         MetricAggregatorPort,
         instance=RedisMetricAggregator(redis=redis_client),
     )
+
+    container.register(
+        NotificationChannelConfigsRepositoryPort,
+        NotificationChannelConfigsRepository,
+    )
+    container.register(
+        NotificationRulesRepositoryPort, NotificationRulesRepository
+    )
+    container.register(
+        NotificationEventsRepositoryPort, NotificationEventsRepository
+    )
+    container.register(
+        NotificationDeliveriesRepositoryPort, NotificationDeliveriesRepository
+    )
+    container.register(
+        NotificationRateLimiterPort,
+        instance=RedisNotificationRateLimiter(redis=redis_client),
+    )
+    container.register(
+        NotificationTaskEnqueuerPort,
+        instance=CeleryNotificationTaskEnqueuer(),
+    )
+    container.register(NotificationDispatcher)
+    container.register(DomainEventPublisher)
+
+    container.register(CreateChannelConfigUseCase)
+    container.register(ListChannelConfigsUseCase)
+    container.register(CreateNotificationRuleUseCase)
+    container.register(ListNotificationRulesUseCase)
+    container.register(UpdateNotificationRuleUseCase)
+    container.register(ListNotificationDeliveriesUseCase)
 
     container.register(CreateUserUseCase)
     container.register(LoginUseCase)
@@ -194,23 +292,7 @@ def create_container() -> Container:
     container.register(CompleteExperimentUseCase)
     container.register(ArchiveExperimentUseCase)
 
-    container.register(
-        SendEventsUseCase,
-        factory=lambda: SendEventsUseCase(
-            events_repository=container.resolve(EventsRepositoryPort),
-            event_types_repository=container.resolve(EventTypesRepositoryPort),
-            decisions_repository=container.resolve(DecisionsRepositoryPort),
-            event_id_generator=container.resolve(EventIdGeneratorPort),
-            event_validator=container.resolve(EventValidatorPort),
-            pending_events_store=container.resolve(PendingEventsStorePort),
-            guardrail_configs_repository=container.resolve(
-                GuardrailConfigsRepositoryPort
-            ),
-            metrics_repository=container.resolve(MetricsRepositoryPort),
-            metric_aggregator=container.resolve(MetricAggregatorPort),
-            uow=container.resolve(UnitOfWorkPort),
-        ),
-    )
+    container.register(SendEventsUseCase)
     container.register(CreateEventTypeUseCase)
     container.register(GetEventTypeUseCase)
     container.register(ListEventTypesUseCase)
@@ -218,21 +300,7 @@ def create_container() -> Container:
     container.register(GetMetricUseCase)
     container.register(ListMetricsUseCase)
     container.register(GetExperimentReportUseCase)
-    container.register(
-        CheckGuardrailsUseCase,
-        factory=lambda: CheckGuardrailsUseCase(
-            experiments_repository=container.resolve(ExperimentsRepositoryPort),
-            guardrail_configs_repository=container.resolve(
-                GuardrailConfigsRepositoryPort
-            ),
-            guardrail_triggers_repository=container.resolve(
-                GuardrailTriggersRepositoryPort
-            ),
-            metrics_repository=container.resolve(MetricsRepositoryPort),
-            metric_aggregator=container.resolve(MetricAggregatorPort),
-            uow=container.resolve(UnitOfWorkPort),
-        ),
-    )
+    container.register(CheckGuardrailsUseCase)
 
     container.register(
         PendingEventsTTLListener,
@@ -243,14 +311,11 @@ def create_container() -> Container:
         ),
     )
 
-    guardrail_checker_interval = int(
-        __import__("os").environ.get("GUARDRAIL_CHECK_INTERVAL_SECONDS", "60")
-    )
     container.register(
         GuardrailCheckerWorker,
         instance=GuardrailCheckerWorker(
             check_use_case=container.resolve(CheckGuardrailsUseCase),
-            interval_seconds=guardrail_checker_interval,
+            interval_seconds=config.guardrail_check_interval_seconds,
         ),
     )
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.application.ports.metrics_repository import MetricsRepositoryPort
 from src.domain.aggregates.metric import Metric
+from src.domain.exceptions.metrics import MetricNotFoundError
 
 
 class GetMetricUseCase:
@@ -11,6 +12,5 @@ class GetMetricUseCase:
     async def execute(self, key: str) -> Metric:
         metric = await self._metrics_repository.get_by_key(key)
         if not metric:
-            msg = f"Metric '{key}' not found"
-            raise ValueError(msg)
+            raise MetricNotFoundError
         return metric

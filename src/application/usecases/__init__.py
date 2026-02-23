@@ -44,3 +44,21 @@ from src.application.usecases.event_type.list import ListEventTypesUseCase
 from src.application.usecases.events.send import SendEventsUseCase
 from src.application.usecases.user.create import CreateUserUseCase
 from src.application.usecases.user.get_by_id import GetUserByIdUseCase
+from src.application.usecases.notifications.create_channel_config import (
+    CreateChannelConfigUseCase,
+)
+from src.application.usecases.notifications.create_rule import (
+    CreateNotificationRuleUseCase,
+)
+from src.application.usecases.notifications.list_channel_configs import (
+    ListChannelConfigsUseCase,
+)
+from src.application.usecases.notifications.list_deliveries import (
+    ListNotificationDeliveriesUseCase,
+)
+from src.application.usecases.notifications.list_rules import (
+    ListNotificationRulesUseCase,
+)
+from src.application.usecases.notifications.update_rule import (
+    UpdateNotificationRuleUseCase,
+)

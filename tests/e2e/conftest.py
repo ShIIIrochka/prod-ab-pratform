@@ -40,6 +40,10 @@ def set_env() -> Generator[None]:
     redis_port = os.environ.get("REDIS_PORT", "6379")
     redis_url = f"redis://{redis_host}:{redis_port}/{_REDIS_TEST_DB_INDEX}"
 
+    rabbitmq_host = os.environ.get("RABBITMQ_HOST", "localhost")
+    rabbitmq_port = os.environ.get("RABBITMQ_PORT", "5672")
+    rabbitmq_url = f"amqp://guest:guest@{rabbitmq_host}:{rabbitmq_port}//"
+
     os.environ.update(
         {
             "DB_HOST": pg["host"],
@@ -52,12 +56,16 @@ def set_env() -> Generator[None]:
             "JWT_ACCESS_EXPIRES": "3600",
             "JWT_REFRESH_EXPIRES": "86400",
             "REDIS_URL": redis_url,
+            "RABBITMQ_URL": rabbitmq_url,
             "PENDING_EVENTS_TTL": "604800",
             "MAX_CONCURRENT_EXPERIMENTS": "5",
             "COOLDOWN_DAYS": "7",
             "EXPERIMENTS_BEFORE_COOLDOWN": "3",
             "COOLDOWN_PROBABILITY": "0.3",
             "ROTATION_DAYS": "30",
+            "GUARDRAIL_CHECK_INTERVAL_SECONDS": "60",
+            "NOTIFICATION_TASK_MAX_RETRIES": "3",
+            "NOTIFICATION_TASK_RETRY_BACKOFF_SECONDS": "60",
         }
     )
     yield

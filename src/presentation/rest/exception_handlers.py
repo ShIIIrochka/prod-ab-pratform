@@ -4,18 +4,20 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from src.domain.exceptions import (
+    CannotReviewExperimentError,
+    CouldNotAuthorizeError,
     DuplicateVariantNamesError,
     EventTypeAlreadyExistsError,
+    EventTypeNotFoundError,
     ExperimentNotFoundError,
     FeatureFlagAlreadyExistsError,
     FeatureFlagNotFoundError,
+    MetricNotFoundError,
     UserAlreadyExistsError,
     UserNotFoundError,
     VariantNameAlreadyExistsError,
     VariantValueTypeError,
 )
-from src.domain.exceptions.events import EventTypeNotFoundError
-from src.domain.exceptions.experiment import CannotReviewExperimentError
 
 
 def setup_exc_handlers(app: FastAPI) -> None:
@@ -28,12 +30,30 @@ def setup_exc_handlers(app: FastAPI) -> None:
             content={"message": str(exc)},
         )
 
+    @app.exception_handler(MetricNotFoundError)
+    async def metric_not_found_exception_handler(
+        request: Request, exc: MetricNotFoundError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"message": exc.message},
+        )
+
     @app.exception_handler(UserNotFoundError)
     async def user_not_found_exception_handler(
         request: Request, exc: UserNotFoundError
     ) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
+            content={"message": exc.message},
+        )
+
+    @app.exception_handler(CouldNotAuthorizeError)
+    async def could_not_authorize_exception_handler(
+        request: Request, exc: CouldNotAuthorizeError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
             content={"message": exc.message},
         )
 

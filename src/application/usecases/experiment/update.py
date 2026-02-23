@@ -1,8 +1,9 @@
-from __future__ import annotations
-
 from uuid import UUID, uuid4
 
 from src.application.dto.experiment import ExperimentUpdateRequest
+from src.application.ports.experiment_versions_repository import (
+    ExperimentVersionsRepositoryPort,
+)
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
@@ -30,11 +31,13 @@ class UpdateExperimentUseCase:
         feature_flags_repository: FeatureFlagsRepositoryPort,
         metrics_repository: MetricsRepositoryPort,
         uow: UnitOfWorkPort,
+        versions_repository: ExperimentVersionsRepositoryPort,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._feature_flags_repository = feature_flags_repository
         self._metrics_repository = metrics_repository
         self._uow = uow
+        self._versions_repository = versions_repository
 
     async def execute(
         self, experiment_id: UUID, data: ExperimentUpdateRequest
@@ -135,4 +138,12 @@ class UpdateExperimentUseCase:
             if "Variant name already exists" in str(e):
                 raise VariantNameAlreadyExistsError from e
             raise
+
+        if changed:
+            await self._versions_repository.save_snapshot(
+                experiment_id=experiment.id,
+                version=experiment.version,
+                snapshot=experiment,
+            )
+
         return experiment

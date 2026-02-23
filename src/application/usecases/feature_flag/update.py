@@ -6,6 +6,7 @@ from src.application.ports.feature_flags_repository import (
 )
 from src.domain.aggregates.feature_flag import FeatureFlag
 from src.domain.exceptions.decision import FeatureFlagNotFoundError
+from src.domain.exceptions.feature_flags import FeatureFlagAlreadyExistsError
 
 
 class UpdateFeatureFlagDefaultValueUseCase:
@@ -23,5 +24,8 @@ class UpdateFeatureFlagDefaultValueUseCase:
             raise FeatureFlagNotFoundError
 
         flag.update_default_value(data.default_value)
-        await self._feature_flags_repository.save(flag)
+        try:
+            await self._feature_flags_repository.save(flag)
+        except ValueError:
+            raise FeatureFlagAlreadyExistsError
         return flag

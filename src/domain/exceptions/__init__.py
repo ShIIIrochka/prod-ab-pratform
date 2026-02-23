@@ -5,12 +5,15 @@ from .users import UserAlreadyExistsError, UserNotFoundError
 from .decision import (
     FeatureFlagNotFoundError,
     ExperimentNotFoundError,
-    FeatureFlagAlreadyExistsError,
     VariantNameAlreadyExistsError,
     DuplicateVariantNamesError,
     VariantValueTypeError,
 )
-from .events import EventTypeAlreadyExistsError
+from .experiment import CannotReviewExperimentError
+from .events import EventTypeAlreadyExistsError, EventTypeNotFoundError
+from .auth import CouldNotAuthorizeError
+from .feature_flags import FeatureFlagAlreadyExistsError
+from .metrics import MetricNotFoundError
 
 
 @dataclass

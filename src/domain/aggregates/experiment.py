@@ -7,6 +7,10 @@ from src.domain.aggregates import BaseEntity
 from src.domain.aggregates.user import User
 from src.domain.entities.guardrail_config import GuardrailConfig
 from src.domain.entities.variant import Variant
+from src.domain.events.experiment import (
+    ExperimentEventType,
+    ExperimentStatusChanged,
+)
 from src.domain.exceptions import DuplicateVariantNamesError
 from src.domain.exceptions.experiment import CannotReviewExperimentError
 from src.domain.value_objects.approval import Approval
@@ -37,6 +41,34 @@ class Experiment(BaseEntity):
     rollback_to_control_active: bool = False
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
+    _domain_events: list[ExperimentStatusChanged] = field(
+        default_factory=list, init=False, repr=False, compare=False
+    )
+
+    def pop_domain_events(self) -> list:
+        events, self._domain_events = list(self._domain_events), []
+        return events
+
+    def _emit(self, event: ExperimentStatusChanged) -> None:
+        self._domain_events.append(event)
+
+    def _emit_status_changed(
+        self,
+        event_type: ExperimentEventType,
+        extra: dict | None = None,
+    ) -> None:
+        self._emit(
+            ExperimentStatusChanged(
+                event_type=event_type,
+                experiment_id=self.id,
+                experiment_name=self.name,
+                flag_key=self.flag_key,
+                owner_id=self.owner_id,
+                status=self.status.value,
+                version=self.version,
+                extra=extra or {},
+            )
+        )
 
     def __post_init__(self) -> None:
         variant_names = [v.name for v in self.variants]
@@ -99,6 +131,7 @@ class Experiment(BaseEntity):
             raise ValueError(msg)
         self.status = ExperimentStatus.ON_REVIEW
         self.updated_at = datetime.utcnow()
+        self._emit_status_changed(ExperimentEventType.SENT_TO_REVIEW)
 
     def request_changes(
         self, owner: User, requesting_user: User, comment: str | None = None
@@ -111,6 +144,10 @@ class Experiment(BaseEntity):
         self.status = ExperimentStatus.DRAFT
         self.approvals.clear()
         self.updated_at = datetime.utcnow()
+        self._emit_status_changed(
+            ExperimentEventType.CHANGES_REQUESTED,
+            extra={"comment": comment} if comment else {},
+        )
 
     def reject(
         self, owner: User, rejecting_user: User, comment: str | None = None
@@ -123,6 +160,7 @@ class Experiment(BaseEntity):
         self.status = ExperimentStatus.REJECTED
         self.approvals.clear()
         self.updated_at = datetime.utcnow()
+        self._emit_status_changed(ExperimentEventType.REJECTED)
 
     def approve(
         self, owner: User, approving_user: User, comment: str | None = None
@@ -153,6 +191,10 @@ class Experiment(BaseEntity):
 
         if min_approvals and approve_count >= min_approvals:
             self.status = ExperimentStatus.APPROVED
+            self._emit_status_changed(
+                ExperimentEventType.APPROVED,
+                extra={"approver_id": approving_user.id},
+            )
         self.updated_at = datetime.utcnow()
 
     def launch(self, owner: User, user: User) -> None:
@@ -161,6 +203,7 @@ class Experiment(BaseEntity):
             raise ValueError(msg)
         self.status = ExperimentStatus.RUNNING
         self.updated_at = datetime.utcnow()
+        self._emit_status_changed(ExperimentEventType.LAUNCHED)
 
     def pause(self) -> None:
         if self.status != ExperimentStatus.RUNNING:
@@ -168,6 +211,7 @@ class Experiment(BaseEntity):
             raise ValueError(msg)
         self.status = ExperimentStatus.PAUSED
         self.updated_at = datetime.utcnow()
+        self._emit_status_changed(ExperimentEventType.PAUSED)
 
     def complete(
         self,
@@ -218,6 +262,10 @@ class Experiment(BaseEntity):
         )
         self.status = ExperimentStatus.COMPLETED
         self.updated_at = datetime.utcnow()
+        self._emit_status_changed(
+            ExperimentEventType.COMPLETED,
+            extra={"outcome": outcome.value, "comment": comment},
+        )
 
     def archive(self) -> None:
         if self.status != ExperimentStatus.COMPLETED:
@@ -228,6 +276,7 @@ class Experiment(BaseEntity):
             raise ValueError(msg)
         self.status = ExperimentStatus.ARCHIVED
         self.updated_at = datetime.utcnow()
+        self._emit_status_changed(ExperimentEventType.ARCHIVED)
 
     def is_active(self) -> bool:
         return self.status.is_active()

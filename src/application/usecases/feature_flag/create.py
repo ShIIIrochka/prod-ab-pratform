@@ -6,7 +6,7 @@ from src.application.ports.feature_flags_repository import (
 )
 from src.application.ports.uow import UnitOfWorkPort
 from src.domain.aggregates.feature_flag import FeatureFlag
-from src.domain.exceptions.decision import FeatureFlagAlreadyExistsError
+from src.domain.exceptions import FeatureFlagAlreadyExistsError
 
 
 class CreateFeatureFlagUseCase:
@@ -29,7 +29,9 @@ class CreateFeatureFlagUseCase:
             default_value=data.default_value,
             description=data.description,
         )
-
-        async with self._uow:
-            await self._feature_flags_repository.save(flag)
-        return flag
+        try:
+            async with self._uow:
+                await self._feature_flags_repository.save(flag)
+            return flag
+        except ValueError:
+            raise FeatureFlagAlreadyExistsError
