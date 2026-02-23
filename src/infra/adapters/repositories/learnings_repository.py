@@ -1,11 +1,8 @@
-from __future__ import annotations
-
 import logging
 
 from datetime import datetime
 from uuid import UUID
 
-from src.application.dto.learnings import GetSimilarCriteria
 from src.application.ports.learnings_repository import LearningsRepositoryPort
 from src.domain.aggregates.experiment import Experiment
 from src.domain.entities.guardrail_config import (
@@ -211,48 +208,50 @@ class LearningsRepository(LearningsRepositoryPort):
             raise
 
     async def get_similar(
-        self, criteria: GetSimilarCriteria
+        self,
+        limit: int,
+        query: str | None = None,
+        flag_key: str | None = None,
+        owner_id: str | None = None,
+        outcome: ExperimentOutcome | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        target_metric_key: str | None = None,
     ) -> list[Experiment]:
         try:
             must = []
             filter_clauses = []
 
-            if criteria.flag_key:
-                filter_clauses.append({"term": {"flag_key": criteria.flag_key}})
-            if criteria.owner_id:
-                filter_clauses.append({"term": {"owner_id": criteria.owner_id}})
-            if criteria.outcome:
+            if flag_key:
+                filter_clauses.append({"term": {"flag_key": flag_key}})
+            if owner_id:
+                filter_clauses.append({"term": {"owner_id": owner_id}})
+            if outcome:
+                filter_clauses.append({"term": {"outcome": outcome.value}})
+            if target_metric_key:
                 filter_clauses.append(
-                    {"term": {"outcome": criteria.outcome.value}}
+                    {"term": {"target_metric_key": target_metric_key}}
                 )
-            if criteria.target_metric_key:
-                filter_clauses.append(
-                    {"term": {"target_metric_key": criteria.target_metric_key}}
-                )
-            if criteria.date_from or criteria.date_to:
+            if date_from or date_to:
                 range_q: dict = {"completed_at": {}}
-                if criteria.date_from:
-                    range_q["completed_at"]["gte"] = (
-                        criteria.date_from.isoformat()
-                    )
-                if criteria.date_to:
-                    range_q["completed_at"]["lte"] = (
-                        criteria.date_to.isoformat()
-                    )
+                if date_from:
+                    range_q["completed_at"]["gte"] = date_from.isoformat()
+                if date_to:
+                    range_q["completed_at"]["lte"] = date_to.isoformat()
                 filter_clauses.append({"range": range_q})
 
-            if criteria.query and criteria.query.strip():
+            if query and query.strip():
                 must.append(
                     {
                         "multi_match": {
-                            "query": criteria.query.strip(),
+                            "query": query.strip(),
                             "fields": ["search_text", "name", "comment"],
                         }
                     }
                 )
 
             body: dict = {
-                "size": criteria.limit,
+                "size": limit,
                 "sort": [
                     {"_score": {"order": "desc"}},
                     {"completed_at": {"order": "desc"}},
