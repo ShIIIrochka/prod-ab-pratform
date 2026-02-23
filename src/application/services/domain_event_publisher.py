@@ -99,10 +99,16 @@ class DomainEventPublisher:
     async def publish(
         self, domain_event: ExperimentStatusChanged | GuardrailTriggered
     ) -> None:
-        notif_event = _to_notification_event(domain_event)
-        if notif_event is not None:
-            await self._dispatcher.dispatch(notif_event)
+        try:
+            notif_event = _to_notification_event(domain_event)
+            if notif_event is not None:
+                await self._dispatcher.dispatch(notif_event)
+        except Exception as e:
+            logger.error(f"Error occured {str(e)}")
 
     async def publish_from(self, aggregate: HasDomainEvents) -> None:
-        for event in aggregate.pop_domain_events():
-            await self.publish(event)
+        try:
+            for event in aggregate.pop_domain_events():
+                await self.publish(event)
+        except Exception as e:
+            logger.error(f"Error occured {str(e)}")
