@@ -26,8 +26,8 @@ def test_idempotency():
         flag_key=flag_key,
         experiment_id=experiment_id,
         variant_id=variant_id,
-        timestamp_day=timestamp_day,
     )
+    
 
     # Ретрай с теми же параметрами
     decision_id_2 = generate_deterministic_decision_id(
@@ -35,7 +35,6 @@ def test_idempotency():
         flag_key=flag_key,
         experiment_id=experiment_id,
         variant_id=variant_id,
-        timestamp_day=timestamp_day,
     )
 
     # ✅ Должны быть одинаковыми!
@@ -48,8 +47,8 @@ def test_idempotency():
         flag_key=flag_key,
         experiment_id=experiment_id,
         variant_id=variant_id,
-        timestamp_day=timestamp_day,
     )
+    
 
     assert decision_id_1 != decision_id_3
     print(f"✅ Разные параметры → разный ID: {decision_id_3}")
@@ -60,8 +59,7 @@ def test_idempotency():
         flag_key=flag_key,
         experiment_id=None,  # Нет эксперимента
         variant_id=None,
-        timestamp_day=timestamp_day,
-    )
+    ) 
 
     assert decision_id_1 != decision_id_default
     print(f"✅ Default значение → свой ID: {decision_id_default}")

@@ -47,7 +47,6 @@ class Learning(BaseEntity):
             )
         c = experiment.completion
         return cls(
-            id=experiment.id,
             experiment_id=experiment.id,
             hypothesis="",
             context_and_segment="",
@@ -82,7 +81,6 @@ class Learning(BaseEntity):
         tags: list[str] | None = None,
     ) -> Learning:
         return cls(
-            id=cls.id,
             experiment_id=cls.experiment_id,
             hypothesis=hypothesis,
             context_and_segment=context_and_segment,

@@ -61,6 +61,7 @@ async def test_list_metrics(client: AsyncClient, auth_headers: dict) -> None:
     )
     r = await client.get("/metrics", headers=auth_headers)
     assert r.status_code == 200, r.text
+
     keys = [m["key"] for m in r.json().get("metrics")]
     assert "metric_list_test_1" in keys
 

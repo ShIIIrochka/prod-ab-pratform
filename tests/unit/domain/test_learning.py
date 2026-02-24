@@ -53,16 +53,15 @@ def test_from_completed_experiment() -> None:
     exp = _make_completed_experiment()
     learning = Learning.from_completed_experiment(exp)
     assert learning.experiment_id == exp.id
-    assert learning.id == exp.id
     assert learning.flag_key == exp.flag_key
     assert learning.name == exp.name
     assert learning.outcome == exp.completion.outcome
     assert learning.outcome_comment == exp.completion.comment
     assert learning.hypothesis == ""
     assert learning.context_and_segment == ""
-    assert learning.links == ()
+    assert learning.links is None
     assert learning.notes is None
-    assert learning.tags == ()
+    assert learning.tags is None
 
 
 def test_from_completed_experiment_raises_without_completion() -> None:
