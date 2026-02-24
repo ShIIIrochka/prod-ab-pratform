@@ -1,10 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Security, status
+from fastapi import APIRouter, HTTPException, Path, Security, status
 
+from src.application.dto.experiment import ExperimentResponse
 from src.application.ports.experiment_versions_repository import (
     ExperimentVersionsRepositoryPort,
 )
+from src.application.usecases import GetExperimentUseCase
 from src.domain.value_objects.experiment_version import ExperimentVersion
 from src.presentation.rest.dependencies import Container
 from src.presentation.rest.middlewares import JWTBackend
@@ -39,9 +41,14 @@ async def list_experiment_versions(
 @router.get("/{experiment_id}/versions/{version}")
 async def get_experiment_version(
     experiment_id: UUID,
-    version: int,
     container: Container,
+    version: int = Path(ge=1),
 ) -> dict:
+    if version == 1:
+        use_case = container.resolve(GetExperimentUseCase)
+        experiment = await use_case.execute(experiment_id)
+        response = ExperimentResponse.model_validate(experiment)
+        return response.model_dump()
     repo = container.resolve(ExperimentVersionsRepositoryPort)
     result = await repo.get_version(experiment_id, version)
     if result is None:

@@ -8,6 +8,7 @@ from src.application.ports.learnings_repository import LearningsRepositoryPort
 from src.application.ports.uow import UnitOfWorkPort
 from src.application.services.domain_event_publisher import DomainEventPublisher
 from src.domain.aggregates.experiment import Experiment
+from src.domain.aggregates.learning import Learning
 from src.domain.exceptions.decision import ExperimentNotFoundError
 
 
@@ -44,6 +45,7 @@ class CompleteExperimentUseCase:
             await self._experiments_repository.save(experiment)
 
         await self._publisher.publish_from(experiment)
-        await self._learnings_repository.save(experiment)
+        learning = Learning.from_completed_experiment(experiment)
+        await self._learnings_repository.save(learning)
 
         return experiment

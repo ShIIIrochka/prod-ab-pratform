@@ -10,6 +10,7 @@ from .decision import (
     VariantValueTypeError,
 )
 from .experiment import CannotReviewExperimentError
+from .learnings import LearningNotFoundError
 from .events import EventTypeAlreadyExistsError, EventTypeNotFoundError
 from .auth import CouldNotAuthorizeError
 from .feature_flags import FeatureFlagAlreadyExistsError

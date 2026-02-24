@@ -76,6 +76,7 @@ from src.application.usecases import (
     RejectExperimentUseCase,
     RequestChangesUseCase,
     SendExperimentToReviewUseCase,
+    UpdateExperimentLearningUseCase,
     UpdateExperimentUseCase,
     UpdateFeatureFlagDefaultValueUseCase,
 )
@@ -332,6 +333,7 @@ def create_container() -> Container:
     container.register(GetExperimentReportUseCase)
     container.register(CheckGuardrailsUseCase)
     container.register(GetSimilarExperimentsUseCase)
+    container.register(UpdateExperimentLearningUseCase)
 
     container.register(
         PendingEventsTTLListener,

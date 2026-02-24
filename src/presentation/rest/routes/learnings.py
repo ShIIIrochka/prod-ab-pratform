@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Query, Security
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
 
-from src.application.dto.experiment import (
-    ExperimentListResponse,
-    ExperimentResponse,
+from src.application.dto.learnings import (
+    GetSimilarCriteria,
+    LearningResponse,
+    SimilarExperimentsListResponse,
+    UpdateLearningRequest,
 )
-from src.application.dto.learnings import GetSimilarCriteria
-from src.application.usecases import GetSimilarExperimentsUseCase
-from src.domain.aggregates.experiment import Experiment
+from src.application.dto.user import UserResponse
+from src.application.usecases import (
+    GetSimilarExperimentsUseCase,
+    UpdateExperimentLearningUseCase,
+)
+from src.domain.exceptions.learnings import LearningNotFoundError
 from src.domain.value_objects.experiment_completion import ExperimentOutcome
-from src.presentation.rest.dependencies import Container
+from src.domain.value_objects.user_role import UserRole
+from src.presentation.rest.dependencies import Container, require_roles
 from src.presentation.rest.middlewares import JWTBackend
 
 
@@ -23,11 +31,7 @@ router = APIRouter(
 )
 
 
-def _to_response(experiment: Experiment) -> ExperimentResponse:
-    return ExperimentResponse.model_validate(experiment)
-
-
-@router.get("/similar", response_model=ExperimentListResponse)
+@router.get("/similar", response_model=SimilarExperimentsListResponse)
 async def get_similar_experiments(
     container: Container,
     q: str | None = Query(None, description="Full-text search query"),
@@ -50,7 +54,7 @@ async def get_similar_experiments(
         None, description="Filter by primary metric key"
     ),
     limit: int = Query(20, ge=1, le=100, description="Max results"),
-) -> ExperimentListResponse:
+) -> SimilarExperimentsListResponse:
     date_from_dt: datetime | None = None
     date_to_dt: datetime | None = None
     if date_from:
@@ -76,7 +80,25 @@ async def get_similar_experiments(
         limit=limit,
     )
     use_case = container.resolve(GetSimilarExperimentsUseCase)
-    experiments = await use_case.execute(criteria)
-    return ExperimentListResponse(
-        experiments=[_to_response(e) for e in experiments]
+    learnings = await use_case.execute(criteria)
+    return SimilarExperimentsListResponse(
+        learnings=[LearningResponse.model_validate(ler) for ler in learnings]
     )
+
+
+@router.patch(
+    "/experiments/{experiment_id}",
+    response_model=LearningResponse,
+)
+async def update_experiment_learning(
+    container: Container,
+    experiment_id: UUID,
+    body: UpdateLearningRequest,
+    _: Annotated[UserResponse, Depends(require_roles([UserRole.ADMIN]))],
+) -> LearningResponse:
+    use_case = container.resolve(UpdateExperimentLearningUseCase)
+    try:
+        learning = await use_case.execute(experiment_id, body)
+    except LearningNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e.message))
+    return LearningResponse.model_validate(learning)
