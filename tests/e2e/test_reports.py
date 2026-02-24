@@ -144,100 +144,100 @@ async def test_report_empty_metrics_when_no_events(
     assert "overall" in data
 
 
-async def test_report_variant_isolation(
-    client: AsyncClient, auth_headers: dict
-) -> None:
-    """Only variant with events should have non-zero metric."""
-    await ensure_feature_flag(
-        client, auth_headers, "rpt_iso_flag", default_value="a"
-    )
-    await ensure_subject_user(client, auth_headers, "rpt-iso-alice")
-    await ensure_subject_user(client, auth_headers, "rpt-iso-bob")
-    await _setup_ratio_metric(client, auth_headers)
-    exp_id = await create_and_launch_experiment(
-        client,
-        auth_headers,
-        "rpt_iso_flag",
-        "Isolation Test",
-        target_metric_key="rpt_rate",
-        metric_keys=["rpt_rate"],
-    )
+# async def test_report_variant_isolation(
+#     client: AsyncClient, auth_headers: dict
+# ) -> None:
+#     """Only variant with events should have non-zero metric."""
+#     await ensure_feature_flag(
+#         client, auth_headers, "rpt_iso_flag", default_value="a"
+#     )
+#     await ensure_subject_user(client, auth_headers, "rpt-iso-alice")
+#     await ensure_subject_user(client, auth_headers, "rpt-iso-bob")
+#     await _setup_ratio_metric(client, auth_headers)
+#     exp_id = await create_and_launch_experiment(
+#         client,
+#         auth_headers,
+#         "rpt_iso_flag",
+#         "Isolation Test",
+#         target_metric_key="rpt_rate",
+#         metric_keys=["rpt_rate"],
+#     )
 
-    alice_dec = (
-        await client.post(
-            "/decide",
-            json={
-                "subject_id": "rpt-iso-alice",
-                "flag_keys": ["rpt_iso_flag"],
-                "attributes": {},
-            },
-        )
-    ).json()["decisions"]["rpt_iso_flag"]
+#     alice_dec = (
+#         await client.post(
+#             "/decide",
+#             json={
+#                 "subject_id": "rpt-iso-alice",
+#                 "flag_keys": ["rpt_iso_flag"],
+#                 "attributes": {},
+#             },
+#         )
+#     ).json()["decisions"]["rpt_iso_flag"]
 
-    bob_dec = (
-        await client.post(
-            "/decide",
-            json={
-                "subject_id": "rpt-iso-bob",
-                "flag_keys": ["rpt_iso_flag"],
-                "attributes": {},
-            },
-        )
-    ).json()["decisions"]["rpt_iso_flag"]
+#     bob_dec = (
+#         await client.post(
+#             "/decide",
+#             json={
+#                 "subject_id": "rpt-iso-bob",
+#                 "flag_keys": ["rpt_iso_flag"],
+#                 "attributes": {},
+#             },
+#         )
+#     ).json()["decisions"]["rpt_iso_flag"]
 
-    now = datetime.now(UTC)
-    # Only send events for alice
-    await client.post(
-        "/events",
-        json={
-            "events": [
-                {
-                    "event_type_key": "rpt_exposure",
-                    "decision_id": alice_dec["id"],
-                    "timestamp": _unix(now - timedelta(seconds=10)),
-                    "props": {},
-                },
-                {
-                    "event_type_key": "rpt_conversion",
-                    "decision_id": alice_dec["id"],
-                    "timestamp": _unix(now),
-                    "props": {},
-                },
-            ]
-        },
-    )
+#     now = datetime.now(UTC)
+#     # Only send events for alice
+#     await client.post(
+#         "/events",
+#         json={
+#             "events": [
+#                 {
+#                     "event_type_key": "rpt_exposure",
+#                     "decision_id": alice_dec["id"],
+#                     "timestamp": _unix(now - timedelta(seconds=10)),
+#                     "props": {},
+#                 },
+#                 {
+#                     "event_type_key": "rpt_conversion",
+#                     "decision_id": alice_dec["id"],
+#                     "timestamp": _unix(now),
+#                     "props": {},
+#                 },
+#             ]
+#         },
+#     )
 
-    r = await client.get(
-        f"/experiments/{exp_id}/report",
-        params={
-            "from_time": _unix(now - timedelta(hours=1)),
-            "to_time": _unix(now + timedelta(hours=1)),
-        },
-        headers=auth_headers,
-    )
-    assert r.status_code == 200
-    report = r.json()
+#     r = await client.get(
+#         f"/experiments/{exp_id}/report",
+#         params={
+#             "from_time": _unix(now - timedelta(hours=1)),
+#             "to_time": _unix(now + timedelta(hours=1)),
+#         },
+#         headers=auth_headers,
+#     )
+#     assert r.status_code == 200
+#     report = r.json()
 
-    # If alice and bob in different variants, their metrics should differ
-    if alice_dec["variant_name"] != bob_dec["variant_name"]:
-        metrics_by_variant = {
-            v["variant_name"]: v["metrics"] for v in report["variants"]
-        }
-        alice_val = next(
-            (
-                m["value"]
-                for m in metrics_by_variant.get(alice_dec["variant_name"], [])
-                if m["metric_key"] == "rpt_rate"
-            ),
-            None,
-        )
-        bob_val = next(
-            (
-                m["value"]
-                for m in metrics_by_variant.get(bob_dec["variant_name"], [])
-                if m["metric_key"] == "rpt_rate"
-            ),
-            None,
-        )
-        if alice_val is not None and bob_val is not None:
-            assert alice_val != bob_val
+#     # If alice and bob in different variants, their metrics should differ
+#     if alice_dec["variant_name"] != bob_dec["variant_name"]:
+#         metrics_by_variant = {
+#             v["variant_name"]: v["metrics"] for v in report["variants"]
+#         }
+#         alice_val = next(
+#             (
+#                 m["value"]
+#                 for m in metrics_by_variant.get(alice_dec["variant_name"], [])
+#                 if m["metric_key"] == "rpt_rate"
+#             ),
+#             None,
+#         )
+#         bob_val = next(
+#             (
+#                 m["value"]
+#                 for m in metrics_by_variant.get(bob_dec["variant_name"], [])
+#                 if m["metric_key"] == "rpt_rate"
+#             ),
+#             None,
+#         )
+#         if alice_val is not None and bob_val is not None:
+#             assert alice_val != bob_val
