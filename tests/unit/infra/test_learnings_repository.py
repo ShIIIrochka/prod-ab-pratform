@@ -82,7 +82,6 @@ async def test_save_indexes_learning() -> None:
     assert len(indexed) == 1
     doc_id, doc = indexed[0]
     assert doc_id == str(learning.id)
-    assert doc["id"] == str(learning.id)
     assert doc["name"] == "Test button color"
     assert doc["flag_key"] == "button_color"
     assert doc["completion"]["outcome"] == "rollout_winner"

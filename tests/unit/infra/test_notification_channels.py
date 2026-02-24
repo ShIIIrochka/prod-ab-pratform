@@ -114,4 +114,7 @@ async def test_telegram_raises_on_non_2xx(monkeypatch) -> None:
 
     channel = TelegramWebhookChannel()
     with pytest.raises(httpx.HTTPStatusError):
-        await channel.send("Test", "https://api.telegram.org/bot/sendMessage")
+        await channel.send(
+            "Test",
+            "https://api.telegram.org/botTOKEN/sendMessage?chat_id=123",
+        )
