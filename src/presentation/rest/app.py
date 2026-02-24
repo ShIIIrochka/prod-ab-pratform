@@ -152,8 +152,8 @@ def create_app() -> FastAPI:
 
         return JSONResponse({"status": "ready"})
 
-    @app.get("/metrics", include_in_schema=False)
-    async def metrics_endpoint() -> PlainTextResponse:
+    @app.get("/prometheus-metrics", include_in_schema=False)
+    async def prometheus_metrics_endpoint() -> PlainTextResponse:
         data = generate_latest()
         return PlainTextResponse(
             content=data.decode("utf-8"),

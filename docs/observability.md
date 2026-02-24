@@ -91,7 +91,7 @@ curl -i http://localhost:80/ready
 
 Экспорт метрик настроен через эндпоинт:
 
-- **`GET /metrics`** — в формате Prometheus text (см. `src/presentation/rest/app.py` и `src/infra/observability/metrics.py`).
+- **`GET /prometheus-metrics`** — в формате Prometheus text (см. `src/presentation/rest/app.py` и `src/infra/observability/metrics.py`).
 
 Доступные метрики:
 
@@ -113,7 +113,7 @@ curl -i http://localhost:80/ready
 2. Открыть метрики:
 
 ```bash
-curl http://localhost:8000/metrics
+curl http://localhost:8000/prometheus-metrics
 ```
 
 3. Убедиться, что счётчики `decide_requests_total`, `events_received_total`, `experiment_exposures_total` увеличиваются.
