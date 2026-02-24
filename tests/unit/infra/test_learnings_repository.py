@@ -218,7 +218,8 @@ async def test_update_learning_sends_partial_doc() -> None:
 
     assert len(updated) == 1
     doc_id, body = updated[0]
-    assert doc_id == str(learning.experiment_id)
+    # Repository uses learning.id as document id
+    assert doc_id == str(learning.id)
     assert body["doc"]["hypothesis"] == "H"
     assert body["doc"]["context_and_segment"] == "C"
     assert body["doc"]["links"] == ["https://x.com"]
@@ -242,8 +243,18 @@ async def test_get_by_experiment_id_returns_learning() -> None:
         def index_name(self) -> str:
             return "learnings"
 
-        async def get(self, index: str, id: str) -> dict:
-            return {"_source": doc}
+        async def search(self, index: str, body: dict) -> dict:
+            # Simulate a single hit document
+            return {
+                "hits": {
+                    "hits": [
+                        {
+                            "_id": str(learning.id),
+                            "_source": doc,
+                        }
+                    ]
+                }
+            }
 
     repo = LearningsRepository(opensearch=FakeOpenSearch())
     record = await repo.get_by_experiment_id(exp.id)
@@ -270,7 +281,8 @@ async def test_get_by_experiment_id_returns_none_when_missing() -> None:
         def index_name(self) -> str:
             return "learnings"
 
-        async def get(self, index: str, id: str) -> dict:
+        async def search(self, index: str, body: dict) -> dict:
+            # Simulate 404 error from OpenSearch client
             raise Err404("not found")
 
     repo = LearningsRepository(opensearch=FakeOpenSearch())
