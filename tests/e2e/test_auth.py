@@ -8,7 +8,9 @@ from httpx import AsyncClient
 pytestmark = pytest.mark.asyncio
 
 
-async def test_register_and_login(client: AsyncClient) -> None:
+async def test_register_and_login(
+    client: AsyncClient, auth_headers: dict
+) -> None:
     r = await client.post(
         "/auth/register",
         json={
@@ -16,6 +18,7 @@ async def test_register_and_login(client: AsyncClient) -> None:
             "password": "secure_pass_123",
             "role": "experimenter",
         },
+        headers=auth_headers,
     )
     assert r.status_code == 201, r.text
     login = await client.post(
@@ -29,16 +32,18 @@ async def test_register_and_login(client: AsyncClient) -> None:
     assert "access_token" in login.json()
 
 
-async def test_register_duplicate_email(client: AsyncClient) -> None:
+async def test_register_duplicate_email(
+    client: AsyncClient, auth_headers: dict
+) -> None:
     payload = {
         "email": "auth_dup@example.com",
         "password": "pass1234",
         "role": "viewer",
     }
-    r1 = await client.post("/auth/register", json=payload)
+    r1 = await client.post("/auth/register", json=payload, headers=auth_headers)
     assert r1.status_code in (201, 400), r1.text
 
-    r2 = await client.post("/auth/register", json=payload)
+    r2 = await client.post("/auth/register", json=payload, headers=auth_headers)
     assert r2.status_code == 400, r2.text
 
 
