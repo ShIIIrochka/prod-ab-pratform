@@ -66,10 +66,15 @@ def _to_notification_event(
 
     if isinstance(domain_event, GuardrailTriggered):
         notif_type = NotificationEventType.GUARDRAIL_TRIGGERED
+        # Time-bucketed id so the same guardrail can trigger again after the window (e.g. next minute).
+        _DEDUP_BUCKET_SECONDS = 60
+        time_bucket = (
+            int(domain_event.triggered_at.timestamp()) // _DEDUP_BUCKET_SECONDS
+        )
         event_id = make_notification_event_id(
             notif_type,
             domain_event.experiment_id,
-            int(domain_event.triggered_at.timestamp()),
+            time_bucket,
         )
         return NotificationEvent(
             event_id=event_id,

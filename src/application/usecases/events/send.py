@@ -31,6 +31,7 @@ from src.domain.value_objects.event_processing import (
     EventsBatchResult,
 )
 from src.infra.observability.metrics import (
+    events_duplicated_total,
     events_received_total,
     events_rejected_total,
     experiment_exposures_total,
@@ -88,6 +89,7 @@ class SendEventsUseCase:
             result = await self._process_single_event(idx, parsed)
             if result is None:
                 duplicates += 1
+                events_duplicated_total.inc()
             elif isinstance(result, EventProcessingError):
                 rejected += 1
                 errors.append(result)

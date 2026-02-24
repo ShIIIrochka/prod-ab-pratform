@@ -30,6 +30,11 @@ events_rejected_total = Counter(
     "Total number of rejected events in /events endpoint.",
 )
 
+events_duplicated_total = Counter(
+    "events_duplicated_total",
+    "Total number of duplicate events (deduplicated) in /events endpoint.",
+)
+
 guardrail_triggered_total = Counter(
     "guardrail_triggered_total",
     "Total number of guardrail triggers.",

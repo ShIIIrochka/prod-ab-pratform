@@ -100,9 +100,12 @@ curl -i http://localhost:80/ready
 - `decide_requests_total` — количество запросов к `/decide`;
 - `events_received_total` — количество событий, полученных эндпоинтом `/events`;
 - `events_rejected_total` — количество отклонённых событий в `/events`;
+- `events_duplicated_total` — количество дубликатов событий (дедупликация в `/events`);
 - `guardrail_triggered_total{metric_key, action}` — число срабатываний guardrail;
 - `experiment_exposures_total{experiment_id, variant}` — количество экспозиций вариантов экспериментов;
 - `active_experiments` — число запущенных экспериментов.
+
+Для допфичи **Experiment Insights UI** (раздел 8 ТЗ) отчёт по эксперименту `GET /experiments/{id}/report` дополнительно возвращает блок **`data_quality`**: `variant_event_counts` (число атрибутированных событий по вариантам для оценки перекоса трафика) и `total_attributed_events`. Глобальные счётчики отклонённых и дубликатов доступны в `/metrics`.
 
 ### Как проверить метрики на демо
 

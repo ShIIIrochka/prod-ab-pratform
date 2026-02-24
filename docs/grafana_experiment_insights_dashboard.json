@@ -17,10 +17,10 @@
     },
     {
       "type": "timeseries",
-      "title": "Conversions per variant",
+      "title": "Exposures rate per variant",
       "targets": [
         {
-          "expr": "sum by (experiment_id, variant) (rate(experiment_conversions_total[5m]))",
+          "expr": "sum by (experiment_id, variant) (rate(experiment_exposures_total[5m]))",
           "legendFormat": "{{experiment_id}} - {{variant}}"
         }
       ],
@@ -28,11 +28,11 @@
     },
     {
       "type": "timeseries",
-      "title": "Conversion rate per variant",
+      "title": "Events duplicated (DQ)",
       "targets": [
         {
-          "expr": "sum by (experiment_id, variant) (rate(experiment_conversions_total[5m])) / sum by (experiment_id, variant) (rate(experiment_exposures_total[5m]))",
-          "legendFormat": "{{experiment_id}} - {{variant}}"
+          "expr": "rate(events_duplicated_total[5m])",
+          "legendFormat": "duplicates"
         }
       ],
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }

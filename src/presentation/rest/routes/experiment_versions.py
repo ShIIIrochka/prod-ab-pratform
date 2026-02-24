@@ -44,16 +44,16 @@ async def get_experiment_version(
     container: Container,
     version: int = Path(ge=1),
 ) -> dict:
+    repo = container.resolve(ExperimentVersionsRepositoryPort)
+    result = await repo.get_version(experiment_id, version)
+    if result is not None:
+        return _serialize(result)
     if version == 1:
         use_case = container.resolve(GetExperimentUseCase)
         experiment = await use_case.execute(experiment_id)
         response = ExperimentResponse.model_validate(experiment)
         return response.model_dump()
-    repo = container.resolve(ExperimentVersionsRepositoryPort)
-    result = await repo.get_version(experiment_id, version)
-    if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Version {version} not found for experiment {experiment_id}",
-        )
-    return _serialize(result)
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Version {version} not found for experiment {experiment_id}",
+    )

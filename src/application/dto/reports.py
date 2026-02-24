@@ -58,6 +58,19 @@ class OverallReportResponse(BaseModel):
     )
 
 
+class DataQualitySummary(BaseModel):
+    """Summary for Experiment Insights UI: traffic distribution and attributed counts."""
+
+    variant_event_counts: dict[str, int] = Field(
+        default_factory=dict,
+        description="Number of attributed events per variant name (for traffic balance)",
+    )
+    total_attributed_events: int = Field(
+        0,
+        description="Total attributed events in the report window",
+    )
+
+
 class ExperimentReportResponse(BaseModel):
     experiment_id: UUID
     experiment_name: str
@@ -75,6 +88,10 @@ class ExperimentReportResponse(BaseModel):
     variants: list[VariantReportResponse] = Field(
         default_factory=list,
         description="Per-variant metric reports",
+    )
+    data_quality: DataQualitySummary | None = Field(
+        default=None,
+        description="Quality summary for Insights UI: variant counts, total attributed",
     )
     context: dict = Field(
         default_factory=dict,

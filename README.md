@@ -28,6 +28,32 @@
 * Приложение должно запускаться командой `docker compose up -d` в корне репозитория.
 * Приложение слушает только порт `80`, все сервисы общаются между собой через docker-сеть (локально).
 
+## Запуск и проверка
+
+**Запуск:** в корне репозитория выполните `docker compose up -d`. Готовность — не позднее 180 с до ответа `200` на `GET /ready`. Подробные предусловия, переменные окружения, миграции и запуск воркеров — в [docs/runbook.md](docs/runbook.md).
+
+**Скрипты для проверки (жюри):** после поднятия сервисов можно прогнать смоук и проверки без ручных вызовов API:
+
+| Скрипт | Назначение |
+|--------|------------|
+| `scripts/smoke_decide_events_report.py` | Happy-path: decide → events → report, проверка `data_quality` в отчёте |
+| `scripts/check_notifications.py` | Подключение Slack (при заданном `SLACK_WEBHOOK_URL`), запуск эксперимента для триггера уведомлений |
+| `scripts/check_insights_metrics.py` | Отчёт по эксперименту и блок `data_quality`, проверка наличия метрик в `/metrics` |
+
+Переменные: `BASE_URL` (по умолчанию `http://localhost:80`), `ADMIN_EMAIL`, `ADMIN_PASSWORD`. Команды запуска — в [docs/runbook.md](docs/runbook.md) (раздел 10).
+
+## Навигация по документации (`docs/`)
+
+| Документ | Содержание |
+|----------|------------|
+| [docs/runbook.md](docs/runbook.md) | Предусловия, переменные окружения, команды запуска API и воркеров, миграции, тесты, **скрипты проверки** |
+| [docs/demo_scenarios_ru.md](docs/demo_scenarios_ru.md) | Сценарии демо: сквозной поток decide → events → report, негативные и граничные случаи, guardrails, уведомления, Experiment Insights |
+| [docs/architecture/repo_map_ru.md](docs/architecture/repo_map_ru.md) | Карта репозитория: точки входа, основные папки, критичный путь decide → event → report/guardrail |
+| [docs/observability.md](docs/observability.md) | Логи, `/health` и `/ready`, метрики Prometheus (`/metrics`), Grafana (дашборд в `docs/grafana_experiment_insights_dashboard.json`) |
+| [docs/compliance_matrix_ru.md](docs/compliance_matrix_ru.md) | Матрица соответствия задание–критерий–реализация: где реализовано, как проверить, какие данные нужны |
+| [docs/architecture/c4_context.md](docs/architecture/c4_context.md), [docs/architecture/c4_container.md](docs/architecture/c4_container.md), [docs/architecture/c4_component_api.md](docs/architecture/c4_component_api.md) | C4-диаграммы (Context, Container, Component) |
+| [docs/architecture/decisions_ru.md](docs/architecture/decisions_ru.md), [docs/architecture/limitations_ru.md](docs/architecture/limitations_ru.md) | Архитектурные решения и ограничения |
+
 ## Академическая честность и культура общения
 
 Мы призываем всех участников соблюдать принципы академической честности и культуры общения, подходить к соревнованиям открыто и добросовестно. <br/>

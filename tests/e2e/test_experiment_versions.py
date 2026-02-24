@@ -8,6 +8,66 @@ from tests.e2e.helpers import ensure_feature_flag
 pytestmark = pytest.mark.asyncio
 
 
+async def test_first_version_recorded_on_create(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    """After creating an experiment, version 1 must be in versions list and GET /versions/1 returns its snapshot."""
+    await ensure_feature_flag(
+        client, auth_headers, "ver_flag_first", default_value="default"
+    )
+    r = await client.post(
+        "/experiments",
+        json={
+            "flag_key": "ver_flag_first",
+            "name": "First Version Test",
+            "audience_fraction": 0.2,
+            "variants": [
+                {
+                    "name": "control",
+                    "value": "default",
+                    "weight": 0.1,
+                    "is_control": True,
+                },
+                {
+                    "name": "treatment",
+                    "value": "variant",
+                    "weight": 0.1,
+                    "is_control": False,
+                },
+            ],
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 201, r.text
+    exp_id = r.json()["id"]
+    created = r.json()
+
+    list_r = await client.get(
+        f"/experiments/{exp_id}/versions", headers=auth_headers
+    )
+    assert list_r.status_code == 200, list_r.text
+    versions = list_r.json()
+    assert isinstance(versions, list), "versions must be a list"
+    assert len(versions) >= 1, "at least version 1 must be recorded"
+    version_numbers = [v["version"] for v in versions]
+    assert 1 in version_numbers, "version 1 must be present after create"
+
+    one_r = await client.get(
+        f"/experiments/{exp_id}/versions/1", headers=auth_headers
+    )
+    assert one_r.status_code == 200, one_r.text
+    data = one_r.json()
+    if "snapshot" in data:
+        snap = data["snapshot"]
+        assert snap["name"] == created["name"]
+        assert snap["version"] == 1
+        assert snap["audience_fraction"] == created["audience_fraction"]
+        assert len(snap["variants"]) == len(created["variants"])
+    else:
+        assert data.get("name") == created["name"]
+        assert data.get("version") == 1
+
+
 async def test_versions_created_after_update(
     client: AsyncClient, auth_headers: dict
 ) -> None:

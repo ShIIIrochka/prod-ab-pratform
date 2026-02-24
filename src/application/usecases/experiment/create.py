@@ -1,4 +1,7 @@
 from src.application.dto.experiment import ExperimentCreateRequest
+from src.application.ports.experiment_versions_repository import (
+    ExperimentVersionsRepositoryPort,
+)
 from src.application.ports.experiments_repository import (
     ExperimentsRepositoryPort,
 )
@@ -29,12 +32,14 @@ class CreateExperimentUseCase:
         user_repository: UsersRepositoryPort,
         metrics_repository: MetricsRepositoryPort,
         uow: UnitOfWorkPort,
+        versions_repository: ExperimentVersionsRepositoryPort,
     ) -> None:
         self._experiments_repository = experiments_repository
         self._feature_flags_repository = feature_flags_repository
         self._user_repository = user_repository
         self._metrics_repository = metrics_repository
         self._uow = uow
+        self._versions_repository = versions_repository
 
     async def execute(
         self, data: ExperimentCreateRequest, owner_id: str
@@ -131,4 +136,10 @@ class CreateExperimentUseCase:
                 await self._experiments_repository.save(experiment)
         except ValueError:
             raise VariantNameAlreadyExistsError
+
+        await self._versions_repository.save_snapshot(
+            experiment_id=experiment.id,
+            version=1,
+            snapshot=experiment,
+        )
         return experiment

@@ -261,6 +261,34 @@ curl -X POST http://localhost:8000/decide \
 
 Ожидаемый результат: `variant_name` и `id` (decision_id) остаются одинаковыми при повторном запросе.
 
+### 2.3. Первая версия эксперимента (аудит / история версий)
+
+**Цель:** ТЗ 2.2, 2.8 — система хранит все версии конфигурации эксперимента, включая первую; по ним можно проверить аудит изменений.
+
+Шаги:
+
+1. Создать эксперимент (как в шаге 4 раздела 2.1), сохранить `EXP_ID`.
+
+2. Запросить список версий:
+
+```bash
+curl -X GET "http://localhost:8000/experiments/$EXP_ID/versions" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Ожидаемый результат: статус `200 OK`, в теле — массив версий; **версия 1 присутствует** (т.е. хотя бы один элемент с `"version": 1`).
+
+3. Запросить snapshot первой версии:
+
+```bash
+curl -X GET "http://localhost:8000/experiments/$EXP_ID/versions/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Ожидаемый результат: статус `200 OK`; в ответе либо поле `snapshot` с данными эксперимента (name, variants, audience_fraction, version: 1), либо при совместимом формате — поля `name`, `version` (1), соответствующие созданному эксперименту.
+
+Автоматическая проверка: `tests/e2e/test_experiment_versions.py::test_first_version_recorded_on_create`.
+
 ---
 
 ## 3. Негативные сценарии
@@ -408,4 +436,34 @@ curl -X GET "http://localhost:8000/experiments/00000000-0000-0000-0000-000000000
   - что в хранилище guardrail-триггеров есть соответствующая запись.
 
 Для формальной защиты по критериям B5 на демо достаточно сослаться на конкретный тест/сценарий и показать один пример срабатывания (в логах и в состоянии эксперимента).
+
+---
+
+## 6. Уведомления (допфича: Slack / Telegram)
+
+**Цель:** Показать, что при смене статуса эксперимента или срабатывании guardrail уведомление уходит в настроенный канал; дедупликация в пределах окна и повторная отправка после окна работают корректно.
+
+**Предусловия:** Запущен Celery-воркер уведомлений (`celery -A src.infra.adapters.celery worker ...`), в системе создан channel config для Slack или Telegram (webhook URL), создано правило (notification rule), связывающее тип события (например, `experiment_launched`, `guardrail_triggered`) с этим каналом.
+
+**Шаги (минимальный сценарий):**
+
+1. Подключить Slack: `POST /notifications/slack/connect` с телом `{"name": "Team", "webhook_url": "https://hooks.slack.com/..."}` (или использовать существующий channel config).
+2. Создать notification rule на нужный тип события и channel config (если ещё не создано).
+3. Выполнить действие, порождающее событие (например, запуск эксперимента: `POST /experiments/{id}/launch`). Убедиться, что в канал Slack пришло одно сообщение.
+4. Повторно отправить то же действие (если применимо) или сработать guardrail в ту же минуту — второе уведомление не должно дублироваться (дедуп по `event_id`). Срабатывание guardrail в другую минуту должно породить новое уведомление (учёт времени).
+
+**Проверка дедупа:** См. unit-тесты `tests/unit/usecases/test_notification_dispatcher.py` (дубликат не ставится в очередь) и логи воркера при повторной доставке (idempotency по delivery status).
+
+---
+
+## 7. Experiment Insights UI (допфича)
+
+**Цель:** Показать данные для допфичи «Experiment Insights UI» (раздел 8 ТЗ): качество данных, распределение трафика, метрики.
+
+**Шаги:**
+
+1. Поднять эксперимент с трафиком и событиями (как в разделе 2.1), получить `experiment_id`.
+2. Вызвать отчёт: `GET /experiments/{id}/report?from_time=...&to_time=...`. В ответе проверить наличие блока **`data_quality`**: `variant_event_counts` (число событий по вариантам), `total_attributed_events`.
+3. Открыть `GET /metrics` и убедиться в наличии счётчиков: `events_received_total`, `events_rejected_total`, `events_duplicated_total`, `experiment_exposures_total`, `guardrail_triggered_total`.
+4. При использовании Prometheus + Grafana импортировать дашборд из `docs/grafana_experiment_insights_dashboard.json` и проверить панели: экспозиции по вариантам, rejected/duplicated, распределение трафика.
 

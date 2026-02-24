@@ -196,3 +196,46 @@ pre-commit run --all-files
 7. Получить отчёт `/experiments/{id}/report` и убедиться, что по вариантам есть метрики, а fields `from_time`/`to_time` — unix-таймштампы.
 
 Детализированные шаги, негативные и граничные сценарии приведены в `docs/demo_scenarios_ru.md`.
+
+---
+
+## 10. Скрипты для проверки (жюри)
+
+В каталоге `scripts/` лежат Python-скрипты для быстрой проверки ключевых сценариев без ручного вызова API. Требуется установленный `requests` (или запуск через `uv run python scripts/...` в корне репозитория).
+
+**Переменные окружения:**
+
+- `BASE_URL` — базовый URL API (по умолчанию `http://localhost:80`);
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` — учётные данные администратора (должны совпадать с созданным при старте админом, например из `ADMIN_EMAIL`/`ADMIN_PASSWORD` в docker-compose или .env).
+
+### 10.1. Смоук: decide → events → report
+
+Проверяет полный happy-path: создание флага, типов событий, метрики, эксперимента, ревью и запуск, вызов `/decide`, отправка событий, получение отчёта и наличие блока `data_quality`.
+
+```bash
+export ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=admin_pass
+python scripts/smoke_decide_events_report.py
+# или: uv run python scripts/smoke_decide_events_report.py
+```
+
+Код выхода: 0 — успех, 1 — ошибка.
+
+### 10.2. Проверка уведомлений
+
+Подключает Slack (если задан `SLACK_WEBHOOK_URL`), создаёт эксперимент и переводит его в статус «запущен», чтобы в очередь уведомлений попали события. Доставка зависит от работающего Celery worker.
+
+```bash
+export ADMIN_EMAIL=... ADMIN_PASSWORD=...
+# опционально: export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+python scripts/check_notifications.py
+```
+
+### 10.3. Проверка метрик и Insights
+
+Выводит блок `data_quality` отчёта по эксперименту и проверяет наличие счётчиков в `/metrics`. Если `EXPERIMENT_ID` не задан, выбирается первый запущенный эксперимент.
+
+```bash
+export ADMIN_EMAIL=... ADMIN_PASSWORD=...
+# опционально: export EXPERIMENT_ID=... FROM_TIME=... TO_TIME=...
+python scripts/check_insights_metrics.py
+```

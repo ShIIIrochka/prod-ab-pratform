@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from src.application.dto.reports import (
+    DataQualitySummary,
     ExperimentReportResponse,
     MetricDynamics,
     MetricDynamicsPoint,
@@ -119,6 +120,17 @@ class GetExperimentReportUseCase:
             dynamics=overall_dynamics,
         )
 
+        variant_event_counts = {
+            v: len(evs) for v, evs in events_by_variant.items()
+        }
+        total_attributed_events = sum(
+            len(evs) for evs in events_by_variant.values()
+        )
+        data_quality = DataQualitySummary(
+            variant_event_counts=variant_event_counts,
+            total_attributed_events=total_attributed_events,
+        )
+
         return ExperimentReportResponse(
             experiment_id=experiment_id,
             experiment_name=experiment.name,
@@ -126,6 +138,7 @@ class GetExperimentReportUseCase:
             to_time=_to_unix(to_time),
             overall=overall,
             variants=variant_reports,
+            data_quality=data_quality,
             context={
                 "attribution": "attributed_only",
                 "window_from": from_time.isoformat(),
