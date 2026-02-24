@@ -71,36 +71,56 @@ class Learning(BaseEntity):
             updated_at=experiment.updated_at,
         )
 
-    @classmethod
     def with_updated_editable(
-        cls,
+        self,
         hypothesis: str | None = None,
         context_and_segment: str | None = None,
         links: list[str] | None = None,
         notes: str | None = None,
         tags: list[str] | None = None,
     ) -> Learning:
-        return cls(
-            experiment_id=cls.experiment_id,
-            hypothesis=hypothesis,
-            context_and_segment=context_and_segment,
-            links=links,
-            notes=notes,
-            tags=tags,
-            flag_key=cls.flag_key,
-            name=cls.name,
-            target_metric_key=cls.target_metric_key,
-            metric_keys=cls.metric_keys,
-            guardrails=cls.guardrails,
-            outcome=cls.outcome,
-            outcome_comment=cls.outcome_comment,
-            winner_variant_id=cls.winner_variant_id,
-            completed_at=cls.completed_at,
-            completed_by=cls.completed_by,
-            owner_id=cls.owner_id,
-            audience_fraction=cls.audience_fraction,
-            variants=cls.variants,
-            targeting_rule=cls.targeting_rule,
-            created_at=cls.created_at,
-            updated_at=cls.updated_at,
+        if links is not None:
+            new_links: list[str] | None = list(links)
+        elif self.links is not None:
+            new_links = list(self.links)
+        else:
+            new_links = None
+
+        if tags is not None:
+            new_tags: list[str] | None = list(tags)
+        elif self.tags is not None:
+            new_tags = list(self.tags)
+        else:
+            new_tags = None
+
+        return Learning(
+            id=self.id,
+            experiment_id=self.experiment_id,
+            hypothesis=hypothesis
+            if hypothesis is not None
+            else self.hypothesis,
+            context_and_segment=(
+                context_and_segment
+                if context_and_segment is not None
+                else self.context_and_segment
+            ),
+            links=new_links,
+            notes=notes if notes is not None else self.notes,
+            tags=new_tags,
+            completed_by=self.completed_by,
+            owner_id=self.owner_id,
+            flag_key=self.flag_key,
+            name=self.name,
+            outcome_comment=self.outcome_comment,
+            audience_fraction=self.audience_fraction,
+            target_metric_key=self.target_metric_key,
+            metric_keys=self.metric_keys,
+            guardrails=self.guardrails,
+            outcome=self.outcome,
+            winner_variant_id=self.winner_variant_id,
+            completed_at=self.completed_at,
+            variants=self.variants,
+            targeting_rule=self.targeting_rule,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
         )

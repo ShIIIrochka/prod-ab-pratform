@@ -84,9 +84,9 @@ def test_with_updated_editable() -> None:
     assert updated.experiment_id == learning.experiment_id
     assert updated.hypothesis == "H"
     assert updated.context_and_segment == "C"
-    assert updated.links == ("https://x.com",)
+    assert updated.links == ["https://x.com"]
     assert updated.notes == "N"
-    assert updated.tags == ("t1",)
+    assert updated.tags == ["t1"]
     assert updated.flag_key == learning.flag_key
     assert updated.name == learning.name
 
