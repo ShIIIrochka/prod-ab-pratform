@@ -1,0 +1,110 @@
+{
+  "title": "Experiment Insights",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Exposures per variant",
+      "targets": [
+        {
+          "expr": "sum by (experiment_id, variant) (rate(experiment_exposures_total[5m]))",
+          "legendFormat": "{{experiment_id}} - {{variant}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Conversions per variant",
+      "targets": [
+        {
+          "expr": "sum by (experiment_id, variant) (rate(experiment_conversions_total[5m]))",
+          "legendFormat": "{{experiment_id}} - {{variant}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Conversion rate per variant",
+      "targets": [
+        {
+          "expr": "sum by (experiment_id, variant) (rate(experiment_conversions_total[5m])) / sum by (experiment_id, variant) (rate(experiment_exposures_total[5m]))",
+          "legendFormat": "{{experiment_id}} - {{variant}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Guardrail metric (triggers)",
+      "targets": [
+        {
+          "expr": "sum by (experiment_id, metric_key, action) (rate(guardrail_triggered_total[5m]))",
+          "legendFormat": "{{experiment_id}} - {{metric_key}} - {{action}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP errors total",
+      "targets": [
+        {
+          "expr": "sum by (path) (rate(http_errors_total[5m]))",
+          "legendFormat": "{{path}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Events rejected total",
+      "targets": [
+        {
+          "expr": "rate(events_rejected_total[5m])",
+          "legendFormat": "rejected"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+    },
+    {
+      "type": "bargauge",
+      "title": "Traffic distribution per variant (current)",
+      "targets": [
+        {
+          "expr": "sum by (experiment_id, variant) (increase(experiment_exposures_total[15m]))",
+          "legendFormat": "{{experiment_id}} - {{variant}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "experiment_id",
+        "type": "query",
+        "datasource": null,
+        "query": "label_values(experiment_exposures_total, experiment_id)",
+        "hide": 0,
+        "refresh": 1,
+        "includeAll": false,
+        "multi": false
+      },
+      {
+        "name": "variant",
+        "type": "query",
+        "datasource": null,
+        "query": "label_values(experiment_exposures_total{experiment_id=~\"$experiment_id\"}, variant)",
+        "hide": 0,
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  }
+}
+

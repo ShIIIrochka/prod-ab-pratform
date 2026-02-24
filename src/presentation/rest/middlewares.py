@@ -6,11 +6,20 @@ from starlette.authentication import (
     AuthenticationBackend,
     BaseUser,
 )
+from starlette.middleware.base import (
+    BaseHTTPMiddleware,
+    RequestResponseEndpoint,
+)
 from starlette.requests import HTTPConnection
+from starlette.responses import Response
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from src.application.ports.jwt import JWTPort
 from src.domain.value_objects.user_role import UserRole
+from src.infra.observability.metrics import (
+    http_errors_total,
+    http_requests_total,
+)
 
 
 @dataclass(slots=True)
@@ -67,3 +76,31 @@ class JWTBackend(AuthenticationBackend):
             status_code=HTTP_401_UNAUTHORIZED,
             detail="User is not authenticated.",
         )
+
+
+class MetricsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        method = request.method
+        path = request.url.path
+
+        response = await call_next(request)
+
+        status_code = response.status_code
+        status_label = str(status_code)
+
+        http_requests_total.labels(
+            method=method,
+            path=path,
+            status_code=status_label,
+        ).inc()
+
+        if status_code >= 500:
+            http_errors_total.labels(
+                method=method,
+                path=path,
+                status_code=status_label,
+            ).inc()
+
+        return response

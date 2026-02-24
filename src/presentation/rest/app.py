@@ -3,7 +3,11 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    generate_latest,
+)
 from redis.asyncio import Redis
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
@@ -16,9 +20,9 @@ from src.infra.workers.guardrail_checker_worker import GuardrailCheckerWorker
 from src.infra.workers.pending_events_ttl_listener import (
     PendingEventsTTLListener,
 )
-from src.presentation.rest.dependencies import container
+from src.presentation.rest.dependencies import Container, container
 from src.presentation.rest.exception_handlers import setup_exc_handlers
-from src.presentation.rest.middlewares import JWTBackend
+from src.presentation.rest.middlewares import JWTBackend, MetricsMiddleware
 from src.presentation.rest.routes import (
     auth,
     decide,
@@ -94,7 +98,8 @@ def create_app() -> FastAPI:
             Middleware(
                 AuthenticationMiddleware,
                 backend=JWTBackend(jwt_adapter=container.resolve(JWTPort)),
-            )
+            ),
+            Middleware(MetricsMiddleware),
         ],
     )
 
@@ -103,8 +108,32 @@ def create_app() -> FastAPI:
         return JSONResponse({"status": "ok"})
 
     @app.get("/ready")
-    async def ready():
+    async def ready(container: Container):
+        opensearch_ok = True
+        # opensearch: OpenSearch = container.resolve(OpenSearch)
+        # try:
+        # await opensearch.ping()
+        # except Exception:
+        # opensearch_ok = False
+
+        if not opensearch_ok:
+            return JSONResponse(
+                {
+                    "status": "not_ready",
+                    "opensearch_ok": opensearch_ok,
+                },
+                status_code=503,
+            )
+
         return JSONResponse({"status": "ready"})
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics_endpoint() -> PlainTextResponse:
+        data = generate_latest()
+        return PlainTextResponse(
+            content=data.decode("utf-8"),
+            media_type=CONTENT_TYPE_LATEST,
+        )
 
     setup_exc_handlers(app)
     app.include_router(auth.router)

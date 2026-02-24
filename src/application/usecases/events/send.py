@@ -30,6 +30,11 @@ from src.domain.value_objects.event_processing import (
     EventProcessingError,
     EventsBatchResult,
 )
+from src.infra.observability.metrics import (
+    events_received_total,
+    events_rejected_total,
+    experiment_exposures_total,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -68,11 +73,16 @@ class SendEventsUseCase:
         rejected = 0
         errors: list[EventProcessingError] = []
 
+        batch_size = len(data.events)
+        if batch_size:
+            events_received_total.inc(batch_size)
+
         for idx, raw in enumerate(data.events):
             parsed = self._parse_event(idx, raw)
             if isinstance(parsed, EventProcessingError):
                 rejected += 1
                 errors.append(parsed)
+                events_rejected_total.inc()
                 continue
 
             result = await self._process_single_event(idx, parsed)
@@ -83,6 +93,18 @@ class SendEventsUseCase:
                 errors.append(result)
             else:
                 accepted += 1
+
+                if (
+                    parsed.event_type_key == EXPOSURE_EVENT_TYPE_KEY
+                    and result.decision_id is not None
+                ):
+                    experiment_id = (
+                        result.decision_id  # will be resolved in repository
+                    )
+                    experiment_exposures_total.labels(
+                        experiment_id=str(experiment_id),
+                        variant=result.props.get("variant", "unknown"),
+                    ).inc()
 
         return EventsBatchResult.build(
             accepted=accepted,

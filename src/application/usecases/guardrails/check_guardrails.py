@@ -66,9 +66,12 @@ class CheckGuardrailsUseCase:
                 )
                 if metric is None:
                     logger.warning(
-                        "Guardrail metric '%s' not found for experiment %s, skipping",
-                        config.metric_key,
-                        experiment_id,
+                        "Guardrail metric not found for experiment, skipping",
+                        extra={
+                            "experiment_id": str(experiment_id),
+                            "metric_key": config.metric_key,
+                            "event": "guardrail_metric_missing",
+                        },
                     )
                     continue
 
@@ -92,12 +95,15 @@ class CheckGuardrailsUseCase:
                 )
 
                 logger.warning(
-                    "Guardrail triggered for experiment %s: metric=%s actual=%.4f threshold=%.4f action=%s",
-                    experiment_id,
-                    config.metric_key,
-                    actual_value,
-                    config.threshold,
-                    config.action,
+                    "Guardrail triggered for experiment",
+                    extra={
+                        "experiment_id": str(experiment_id),
+                        "metric_key": config.metric_key,
+                        "threshold": config.threshold,
+                        "actual_value": actual_value,
+                        "action": config.action.value,
+                        "event": "guardrail_triggered",
+                    },
                 )
 
                 async with self._uow:

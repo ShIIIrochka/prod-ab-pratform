@@ -1,6 +1,110 @@
 services:
   api:
-    platform: linux/amd64
     build: .
+    environment:
+      JWT_SECRET: Jf/ZpZSxfMWnOexP48Mp1z200jd+8BVZ7ws6Uw5Jp/w=
+      JWT_ACCESS_EXPIRES: 3600
+      JWT_REFRESH_EXPIRES: 86400
+      JWT_ALG: HS256
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_URI: redis://redis:6379/0
+      PENDING_EVENTS_TTL_SECONDS: 604800
+      MAX_CONCURRENT_EXPERIMENTS: 3
+      COOLDOWN_DAYS: 30
+      EXPERIMENTS_BEFORE_COOLDOWN: 5
+      COOLDOWN_PROBABILITY: 0.1
+      ROTATION_DAYS: 1
+      GUARDRAIL_CHECK_INTERVAL_SECONDS: 60
+      NOTIFICATION_TASK_MAX_RETRIES: 3
+      NOTIFICATION_TASK_RETRY_BACKOFF_SECONDS: 60
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672//
+      PENDING_EVENTS_TTL: 604800
+      OPENSEARCH_INDEX: learnings
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_PORT: 9200
+      OPENSEARCH_USERNAME: admin
+      OPENSEARCH_PASSWORD: pbWlZ&ys9cXY
+      LOG_FORMAT: json
+    depends_on:
+      - postgres
+      - opensearch
     ports:
-      - "80:80"
+      - "8000:8000"
+    networks:
+      - backend-net
+
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - backend-net
+
+  opensearch:
+    container_name: opensearch
+    image: opensearchproject/opensearch:1.3.0
+    environment:
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=pbWlZ&ys9cXY
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+
+  redis:
+    container_name: redis
+    image: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - backend-net
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    networks:
+      - backend-net
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+    networks:
+      - backend-net
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - prometheus
+    networks:
+      - backend-net
+
+networks:
+  backend-net:
+    driver: bridge

@@ -5,6 +5,7 @@
 - Python 3.14+, `uv` package manager
 - PostgreSQL running (default: `localhost:5432`, user `postgres`, password `postgres`)
 - Redis running (default: `localhost:6379`)
+- OpenSearch (optional, for Learnings Library): if not running, app starts but similar-experiments search returns empty results
 - Environment variables configured (see `.env.example` or set directly)
 
 ---
@@ -24,6 +25,8 @@
 | `JWT_ACCESS_EXPIRES` | `3600` | Access token TTL (seconds) |
 | `JWT_REFRESH_EXPIRES` | `86400` | Refresh token TTL (seconds) |
 | `GUARDRAIL_CHECK_INTERVAL_SECONDS` | `60` | How often guardrail worker checks metrics |
+| `OPENSEARCH_URL` | `https://localhost:9200` | OpenSearch base URL (Learnings Library) |
+| `OPENSEARCH_INDEX` | `learnings` | Index name for experiment learnings |
 
 ---
 

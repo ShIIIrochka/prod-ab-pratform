@@ -76,7 +76,13 @@ class OpenSearch:
         password: str,
         index_name: str,
     ) -> None:
-        self._hosts = [{"host": host, "port": port}]
+        self._hosts = [
+            {
+                "host": host,
+                "port": port,
+                "scheme": "https",
+            }
+        ]
         self._auth = (username, password)
         self._index_name = index_name
         self._client: AsyncOpenSearch
@@ -121,3 +127,6 @@ class OpenSearch:
 
     async def disconnect(self) -> None:
         await self._client.close()
+
+    async def ping(self):
+        await self._client.ping()

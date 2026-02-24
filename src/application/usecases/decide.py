@@ -23,6 +23,7 @@ from src.domain.services.decision_id_generator import (
 from src.domain.services.participation_guard import (
     check_participation_allowed,
 )
+from src.infra.observability.metrics import decide_requests_total
 
 
 class DecideUseCase:
@@ -51,6 +52,7 @@ class DecideUseCase:
         self._rotation_period_days = rotation_period_days
 
     async def execute(self, data: DecideRequest) -> dict[str, Decision]:
+        decide_requests_total.inc()
         user = await self._user_repository.get_by_id(data.subject_id)
         if not user:
             raise UserNotFoundError
