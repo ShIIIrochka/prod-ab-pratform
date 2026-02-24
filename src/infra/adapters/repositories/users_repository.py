@@ -24,7 +24,8 @@ class UserRepository(UsersRepositoryPort):
         model = await UserModel.get_or_none(email=user.email)
         data = asdict(user)
         if model:
-            await UserModel.filter(id=user.id).update(**data)
+            update_data = {k: v for k, v in data.items() if k != "id"}
+            await UserModel.filter(id=user.id).update(**update_data)
         else:
             await UserModel.create(**data)
         return None

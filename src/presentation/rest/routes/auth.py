@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Security, status
+from fastapi import APIRouter, Depends, Request, Security, status
 
 from src.application.dto.auth import (
     LoginRequest,
@@ -11,7 +11,8 @@ from src.application.dto.user import UserResponse
 from src.application.usecases import GetUserByIdUseCase
 from src.application.usecases.auth.login import LoginUseCase
 from src.application.usecases.user.create import CreateUserUseCase
-from src.presentation.rest.dependencies import Container
+from src.domain.value_objects.user_role import UserRole
+from src.presentation.rest.dependencies import Container, require_roles
 from src.presentation.rest.middlewares import JWTBackend
 
 
@@ -25,6 +26,10 @@ router = APIRouter(
     "/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Security(JWTBackend.auth_required),
+        Depends(require_roles([UserRole.ADMIN])),
+    ],
 )
 async def register(
     data: RegisterRequest,

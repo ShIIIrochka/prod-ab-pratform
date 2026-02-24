@@ -3,8 +3,9 @@ from __future__ import annotations
 from src.application.dto.auth import RegisterRequest
 from src.application.ports.password_hasher import PasswordHasherPort
 from src.application.ports.users_repository import UsersRepositoryPort
-from src.domain.aggregates.user import User
+from src.domain.aggregates.user import ApprovalGroup, User
 from src.domain.exceptions.users import UserAlreadyExistsError
+from src.domain.value_objects.user_role import UserRole
 
 
 class CreateUserUseCase:
@@ -28,6 +29,20 @@ class CreateUserUseCase:
             password=password_hash,
             approval_group=None,
         )
+
+        if (
+            data.role == UserRole.EXPERIMENTER
+            and data.approver_ids is not None
+            and len(data.approver_ids) > 0
+            and data.min_approvals_required is not None
+        ):
+            user.set_approval_group(
+                ApprovalGroup(
+                    experimenter_id=user.id,
+                    approver_ids=data.approver_ids,
+                    min_approvals_required=data.min_approvals_required,
+                )
+            )
 
         await self._users_repository.save(user)
         return user

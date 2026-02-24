@@ -2,40 +2,39 @@ services:
   api:
     build: .
     environment:
-      JWT_SECRET: Jf/ZpZSxfMWnOexP48Mp1z200jd+8BVZ7ws6Uw5Jp/w=
-      JWT_ACCESS_EXPIRES: 3600
-      JWT_REFRESH_EXPIRES: 86400
-      JWT_ALG: HS256
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: postgres
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      REDIS_URI: redis://redis:6379/0
-      PENDING_EVENTS_TTL_SECONDS: 604800
-      MAX_CONCURRENT_EXPERIMENTS: 3
-      COOLDOWN_DAYS: 30
-      EXPERIMENTS_BEFORE_COOLDOWN: 5
-      COOLDOWN_PROBABILITY: 0.1
-      ROTATION_DAYS: 1
-      GUARDRAIL_CHECK_INTERVAL_SECONDS: 60
-      NOTIFICATION_TASK_MAX_RETRIES: 3
-      NOTIFICATION_TASK_RETRY_BACKOFF_SECONDS: 60
-      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672//
-      PENDING_EVENTS_TTL: 604800
-      OPENSEARCH_INDEX: learnings
-      OPENSEARCH_HOST: opensearch
-      OPENSEARCH_PORT: 9200
-      OPENSEARCH_USERNAME: admin
-      OPENSEARCH_PASSWORD: pbWlZ&ys9cXY
-      LOG_FORMAT: json
+      - JWT_SECRET=Jf/ZpZSxfMWnOexP48Mp1z200jd+8BVZ7ws6Uw5Jp/w=
+      - JWT_ACCESS_EXPIRES=3600
+      - JWT_REFRESH_EXPIRES=86400
+      - JWT_ALG=HS256
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - REDIS_URI=redis://redis:6379/0
+      - PENDING_EVENTS_TTL_SECONDS=604800
+      - MAX_CONCURRENT_EXPERIMENTS=3
+      - COOLDOWN_DAYS=30
+      - EXPERIMENTS_BEFORE_COOLDOWN=5
+      - COOLDOWN_PROBABILITY=0.1
+      - ROTATION_DAYS=1
+      - GUARDRAIL_CHECK_INTERVAL_SECONDS=60
+      - NOTIFICATION_TASK_MAX_RETRIES=3
+      - NOTIFICATION_TASK_RETRY_BACKOFF_SECONDS=60
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672//
+      - PENDING_EVENTS_TTL=604800
+      - OPENSEARCH_INDEX=learnings
+      - OPENSEARCH_HOST=opensearch
+      - OPENSEARCH_PORT=9200
+      - OPENSEARCH_USERNAME=admin
+      - OPENSEARCH_PASSWORD=pbWlZys9cXY
     depends_on:
-      - postgres
-      - opensearch
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
     ports:
-      - "8000:8000"
-    networks:
-      - backend-net
+      - "80:80"
 
   postgres:
     image: postgres:16
@@ -46,18 +45,36 @@ services:
       - POSTGRES_DB=postgres
     ports:
       - "5432:5432"
-    networks:
-      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   opensearch:
     container_name: opensearch
-    image: opensearchproject/opensearch:1.3.0
+    image: opensearchproject/opensearch:2.12.0
+    restart: always
     environment:
-      - OPENSEARCH_USERNAME=admin
-      - OPENSEARCH_PASSWORD=pbWlZ&ys9cXY
+      - discovery.type=single-node
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=pbWlZys9cXY
+      - plugins.security.ssl.http.enabled=true
     ports:
       - "9200:9200"
       - "9600:9600"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-k",
+          "-u",
+          "admin:pbWlZys9cXY",
+          "https://localhost:9200",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     container_name: redis
@@ -65,8 +82,6 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    networks:
-      - backend-net
 
   rabbitmq:
     image: rabbitmq:management
@@ -77,8 +92,6 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
-    networks:
-      - backend-net
 
   prometheus:
     image: prom/prometheus:v2.55.1
@@ -90,21 +103,13 @@ services:
       - "9090:9090"
     depends_on:
       - api
-    networks:
-      - backend-net
 
   grafana:
     image: grafana/grafana:11.1.0
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
-    networks:
-      - backend-net
-
-networks:
-  backend-net:
-    driver: bridge

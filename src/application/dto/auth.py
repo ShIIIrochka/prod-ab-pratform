@@ -11,6 +11,14 @@ class RegisterRequest(BaseModel):
     role: UserRole = Field(
         default=UserRole.VIEWER, description="User role (default: VIEWER)"
     )
+    approver_ids: list[str] | None = Field(
+        default=None,
+        description="Список id апруверов для роли EXPERIMENTER (опционально)",
+    )
+    min_approvals_required: int | None = Field(
+        default=None,
+        description="Минимальное число одобрений для EXPERIMENTER (опционально)",
+    )
 
 
 class LoginRequest(BaseModel):

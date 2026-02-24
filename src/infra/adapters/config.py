@@ -31,6 +31,8 @@ class Config:
     opensearch_port: int
     opensearch_username: str
     opensearch_password: str
+    admin_email: str | None = None
+    admin_password: str | None = None
 
     @classmethod
     def get_config(cls) -> "Config":
@@ -81,6 +83,8 @@ class Config:
                 opensearch_port=int(os.environ["OPENSEARCH_PORT"]),
                 opensearch_username=os.environ["OPENSEARCH_USERNAME"],
                 opensearch_password=os.environ["OPENSEARCH_PASSWORD"],
+                admin_email=os.environ.get("ADMIN_EMAIL"),
+                admin_password=os.environ.get("ADMIN_PASSWORD"),
             )
         except KeyError:
             raise RuntimeError("Required variables are not set")

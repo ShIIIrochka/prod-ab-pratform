@@ -66,6 +66,8 @@ def set_env() -> Generator[None]:
             "GUARDRAIL_CHECK_INTERVAL_SECONDS": "60",
             "NOTIFICATION_TASK_MAX_RETRIES": "3",
             "NOTIFICATION_TASK_RETRY_BACKOFF_SECONDS": "60",
+            "ADMIN_EMAIL": "e2e-admin@example.com",
+            "ADMIN_PASSWORD": "e2e_admin_pass",
         }
     )
     yield
@@ -138,19 +140,9 @@ async def client(app) -> AsyncGenerator[AsyncClient]:
 
 @pytest_asyncio.fixture
 async def admin_token(client: AsyncClient) -> str:
+    """Токен админа: при старте приложения создаётся пользователь из ADMIN_EMAIL/ADMIN_PASSWORD, логинимся по нему."""
     if _admin_token_cache:
         return _admin_token_cache["token"]
-    reg = await client.post(
-        "/auth/register",
-        json={
-            "email": "e2e-admin@example.com",
-            "password": "e2e_admin_pass",
-            "role": "admin",
-        },
-    )
-    assert reg.status_code in (201, 400), (
-        f"Unexpected register status: {reg.text}"
-    )
     login = await client.post(
         "/auth/login",
         json={

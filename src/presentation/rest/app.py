@@ -13,6 +13,10 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 
 from src.application.ports.jwt import JWTPort
+from src.application.ports.password_hasher import PasswordHasherPort
+from src.application.ports.users_repository import UsersRepositoryPort
+from src.domain.aggregates.user import User
+from src.domain.value_objects.user_role import UserRole
 from src.infra.adapters.config import Config
 from src.infra.adapters.db.db import Database
 from src.infra.adapters.opensearch.opensearch import OpenSearch
@@ -44,6 +48,25 @@ from src.presentation.rest.routes.notifications import (
 )
 
 
+async def _ensure_admin_user() -> None:
+    config: Config = container.resolve(Config)
+    if not config.admin_email or not config.admin_password:
+        return
+
+    users: UsersRepositoryPort = container.resolve(UsersRepositoryPort)
+    hasher: PasswordHasherPort = container.resolve(PasswordHasherPort)
+    existing = await users.get_by_email(config.admin_email)
+    if existing is not None:
+        return
+    user = User(
+        email=config.admin_email,
+        role=UserRole.ADMIN,
+        password=hasher.hash(config.admin_password),
+        approval_group=None,
+    )
+    await users.save(user)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     config: Config = container.resolve(Config)
@@ -52,6 +75,8 @@ async def lifespan(_: FastAPI):
         modules={"models": ["src.infra.adapters.db.models"]},
     )
     await db.connect()
+
+    await _ensure_admin_user()
 
     opensearch: OpenSearch = container.resolve(OpenSearch)
     await opensearch.connect()
